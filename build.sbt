@@ -23,4 +23,5 @@ lazy val pathing = Project("logos-pathing", file("pathing")).settings(commonSett
 lazy val utils = Project("logos-utils", file("utils")).settings(commonSettings: _*)
 
 lazy val root = Project("logos", file(".")).dependsOn(
-  collections, qlearning, pathing, utils).settings(commonSettings: _*)
+  collections, qlearning, pathing, utils).settings(commonSettings: _*).aggregate(
+      collections, qlearning, pathing, utils)
