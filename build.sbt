@@ -1,5 +1,7 @@
 scalaVersion := "2.11.4"
 
+version := "0.1"
+
 organization := "com.colingodsey"
 
 crossPaths := true
