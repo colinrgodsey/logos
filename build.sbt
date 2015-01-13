@@ -4,7 +4,7 @@ val mavenPath = file("../maven")
 
 val commonSettings = Seq(
   scalaVersion := "2.11.4",
-  version := "0.2",
+  version := "0.3-SNAPSHOT",
   organization := "com.colingodsey",
   crossPaths := true,
   publishTo := Some(Resolver.file("file", mavenPath))
