@@ -1,6 +1,6 @@
 import sbt.Keys._
 
-val mavenPath = file("./mvn")
+val mavenPath = file("../maven")
 
 val commonSettings = Seq(
   scalaVersion := "2.11.4",
