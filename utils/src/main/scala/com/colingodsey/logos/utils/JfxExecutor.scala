@@ -1,12 +1,12 @@
 package com.colingodsey.logos.utils
-
+/*
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{AbstractExecutorService, ExecutorService, ThreadFactory}
 import javafx.application.Platform
 
 import scala.concurrent.duration._
-/*
+
 class JfxExecutor(config: Config,
 		prerequisites: DispatcherPrerequisites)
 		extends ExecutorServiceConfigurator(config, prerequisites) {
