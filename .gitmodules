@@ -1,0 +1,3 @@
+[submodule "mvn"]
+	path = mvn
+	url = git@github.com:colinrgodsey/logos.git
