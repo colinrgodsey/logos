@@ -1,27 +1,35 @@
 import sbt.Keys._
 
-val mavenPath = file("../maven")
+scalaVersion in ThisBuild := "2.11.4"
 
-val commonSettings = Seq(
-  scalaVersion := "2.11.4",
-  version := "0.3-SNAPSHOT",
-  organization := "com.colingodsey",
-  crossPaths := true,
-  publishTo := Some(Resolver.file("file", mavenPath))
-)
+version in ThisBuild := "0.4"
 
+organization in ThisBuild := "com.colingodsey"
 
+crossPaths in ThisBuild := true
 
-//resolvers += Resolver.file("local mvn", mavenPath)
+crossScalaVersions in ThisBuild := Seq("2.11.4", "2.10.4")
 
-lazy val collections = Project("logos-collections", file("collections")).settings(commonSettings: _*)
+publish in ThisBuild := ()
 
-lazy val qlearning = Project("logos-qlearning", file("qlearning")).settings(commonSettings: _*)
+publishTo in ThisBuild := Some(Resolver.file("file", file("../maven")))
 
-lazy val pathing = Project("logos-pathing", file("pathing")).settings(commonSettings: _*)
-
-lazy val utils = Project("logos-utils", file("utils")).settings(commonSettings: _*)
-
-lazy val root = Project("logos", file(".")).dependsOn(
-  collections, qlearning, pathing, utils).settings(commonSettings: _*).aggregate(
-      collections, qlearning, pathing, utils)
+pomExtra in ThisBuild :=
+    <url>https://github.com/colinrgodsey/logos</url>
+    <licenses>
+      <license>
+        <name></name>
+        <url></url>
+      </license>
+    </licenses>
+    <scm>
+      <url>git://github.com/colinrgodsey/logos.git</url>
+      <connection>scm:git://github.com/colinrgodsey/logos.git</connection>
+    </scm>
+    <developers>
+      <developer>
+        <id>colinrgodsey</id>
+        <name>Colin Godsey</name>
+        <url>https://github.com/colinrgodsey/</url>
+      </developer>
+    </developers>

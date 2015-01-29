@@ -29,13 +29,13 @@ trait QLearning[T] extends QLearningValues {
   def desire: T
   def plus(a: T, b: T): T
   def dot(a: T, b: T): Double
-  def times(a: T, b: Double): T
+  def scale(a: T, b: Double): T
 
   def update(oldQ: T, maxNextQ: T, reward: T): T = {
     //reward + oldQ * α0 + maxNextQ * (1.0 - α0)
     plus(
-      plus(reward, times(oldQ, α0)),
-      times(maxNextQ, 1.0 - α0))
+      plus(reward, scale(oldQ, α0)),
+      scale(maxNextQ, 1.0 - α0))
   }
 
   def policy[U](actions: Map[U, T]): U = {
@@ -54,5 +54,5 @@ trait DoubleQLearning extends QLearning[Double] {
 
   def plus(a: Double, b: Double): Double = a + b
   def dot(a: Double, b: Double): Double = a * b
-  def times(a: Double, b: Double): Double = a * b
+  def scale(a: Double, b: Double): Double = a * b
 }
