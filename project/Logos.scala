@@ -20,9 +20,6 @@ object Logos {
 
     version in ThisBuild <<= version in LocalRootProject,
 
-    libraryDependencies in ThisBuild += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
-    testFrameworks in ThisBuild += new TestFramework("utest.runner.Framework"),
-
     pomExtra in ThisBuild :=
       <url>https://github.com/colinrgodsey/logos</url>
         <licenses>
@@ -44,4 +41,8 @@ object Logos {
         </developers>
   )
 
+  def commonSettings = Seq(
+    libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
+    testFrameworks += new TestFramework("utest.runner.Framework")
+  )
 }
