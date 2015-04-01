@@ -1,35 +1,23 @@
-import sbt.Keys._
+lazy val collections = crossProject.in(file("collections"))
+  .settings(name := "logos-collections")
+lazy val collectionsJVM = collections.jvm
+lazy val collectionsJs = collections.js
 
-scalaVersion in ThisBuild := "2.11.4"
+lazy val qlearning = crossProject.in(file("qlearning"))
+  .settings(name := "logos-qlearning")
+  .dependsOn(collections)
 
-version in ThisBuild := "0.4"
+lazy val qlearningJVM = qlearning.jvm
+lazy val qlearningJs = qlearning.js
 
-organization in ThisBuild := "com.colingodsey"
+lazy val pathing = crossProject.in(file("pathing"))
+  .settings(name := "logos-pathing")
+lazy val pathingJVM = pathing.jvm
+lazy val pathingJs = pathing.js
 
-crossPaths in ThisBuild := true
+lazy val utils = crossProject.in(file("utils"))
+  .settings(name := "logos-utils")
+lazy val utilsJVM = utils.jvm
+lazy val utilsJs = utils.js
 
-crossScalaVersions in ThisBuild := Seq("2.11.4", "2.10.4")
-
-publish in ThisBuild := ()
-
-publishTo in ThisBuild := Some(Resolver.file("file", file("../maven")))
-
-pomExtra in ThisBuild :=
-    <url>https://github.com/colinrgodsey/logos</url>
-    <licenses>
-      <license>
-        <name></name>
-        <url></url>
-      </license>
-    </licenses>
-    <scm>
-      <url>git://github.com/colinrgodsey/logos.git</url>
-      <connection>scm:git://github.com/colinrgodsey/logos.git</connection>
-    </scm>
-    <developers>
-      <developer>
-        <id>colinrgodsey</id>
-        <name>Colin Godsey</name>
-        <url>https://github.com/colinrgodsey/</url>
-      </developer>
-    </developers>
+Logos.buildSettings

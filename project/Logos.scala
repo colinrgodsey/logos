@@ -1,72 +1,47 @@
 import sbt.Keys._
 import sbt._
-import scala.scalajs.sbtplugin.ScalaJSPlugin
-import scala.scalajs.sbtplugin.ScalaJSCrossVersion
-import scala.scalajs.sbtplugin.ScalaJSPlugin._
 
+import org.scalajs.sbtplugin.ScalaJSPlugin
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
-object Logos extends sbt.Build {
-
-  lazy val scalaJsSettings = scalaJSBuildSettings ++ Seq(
-    publishTo := (publishTo in ThisBuild).value
-  )
-
-  lazy val root = Project("logos", file(".")).dependsOn(
-    collections, qlearning, pathing, utils
-  ).aggregate(
-    collections, qlearning, pathing, utils, rootJs
-  )
-
-  lazy val rootJs = project.in(file("js")).dependsOn(
-    collectionsJs, qlearningJs, pathingJs, utilsJs
-  ).aggregate(
-    collectionsJs, qlearningJs, pathingJs, utilsJs
-  ).settings (
+object Logos {
+  def buildSettings = Seq(
     name := "logos",
-    unmanagedSourceDirectories in Compile +=
-        (baseDirectory in ThisBuild).value / "src" / "main" / "scala"
-  ).settings(scalaJsSettings: _*)
 
-  lazy val collections = project.in(file("collections")).settings(
-    name := "logos-collections"
-  )//.aggregate(collectionsJs)
+    publish := {},
+    publishLocal := {},
 
-  lazy val collectionsJs = project.in(file("collectionsJs")).settings (
-    name := "logos-collections",
-    unmanagedSourceDirectories in Compile +=
-        (baseDirectory in collections).value / "src" / "main" / "scala"
-  ).settings(scalaJsSettings: _*)
+    scalaVersion in ThisBuild := "2.11.4",
+    organization in ThisBuild := "com.colingodsey",
+    crossPaths in ThisBuild := true,
+    crossScalaVersions in ThisBuild := Seq("2.11.5", "2.10.4"),
 
-  lazy val qlearning = project.in(file("qlearning")).settings(
-    name := "logos-qlearning"
-  )//.aggregate(qlearningJs)
+    publishTo in ThisBuild := Some(Resolver.file("file", file("../maven"))),
 
-  lazy val qlearningJs = project.in(file("qlearningJs")).settings (
-    name := "logos-qlearning",
-    unmanagedSourceDirectories in Compile +=
-        (baseDirectory in qlearning).value / "src" / "main" / "scala"
-  ).settings(scalaJsSettings: _*)
+    version in ThisBuild <<= version in LocalRootProject,
 
-  lazy val pathing = project.in(file("pathing")).settings(
-    name := "logos-pathing"
-  )//.aggregate(pathingJs)
+    libraryDependencies in ThisBuild += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
+    testFrameworks in ThisBuild += new TestFramework("utest.runner.Framework"),
 
-  lazy val pathingJs = project.in(file("pathingJs")).settings (
-    name := "logos-pathing",
-    unmanagedSourceDirectories in Compile +=
-        (baseDirectory in pathing).value / "src" / "main" / "scala"
-  ).settings(scalaJsSettings: _*)
-
-  lazy val utils = project.in(file("utils")).settings(
-    name := "logos-utils"
-  )//.aggregate(utilsJs)
-
-  lazy val utilsJs = project.in(file("utilsJs")).settings (
-    name := "logos-utils",
-    unmanagedSourceDirectories in Compile +=
-        (baseDirectory in utils).value / "src" / "main" / "scala"
-  ).settings(scalaJsSettings: _*)
-
-  override def rootProject = Some(root)
+    pomExtra in ThisBuild :=
+      <url>https://github.com/colinrgodsey/logos</url>
+        <licenses>
+          <license>
+            <name></name>
+            <url></url>
+          </license>
+        </licenses>
+        <scm>
+          <url>git://github.com/colinrgodsey/logos.git</url>
+          <connection>scm:git://github.com/colinrgodsey/logos.git</connection>
+        </scm>
+        <developers>
+          <developer>
+            <id>colinrgodsey</id>
+            <name>Colin Godsey</name>
+            <url>https://github.com/colinrgodsey/</url>
+          </developer>
+        </developers>
+  )
 
 }
