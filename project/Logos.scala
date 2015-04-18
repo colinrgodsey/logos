@@ -8,8 +8,8 @@ object Logos {
   def buildSettings = Seq(
     name := "logos",
 
-    publish := {},
-    publishLocal := {},
+    //publish := {},
+    //publishLocal := {},
 
     scalaVersion in ThisBuild := "2.11.4",
     organization in ThisBuild := "com.colingodsey",

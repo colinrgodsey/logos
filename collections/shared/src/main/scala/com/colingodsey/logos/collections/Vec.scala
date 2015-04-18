@@ -3,7 +3,10 @@ package com.colingodsey.logos.collections
 object Vec {
   def zero[T <: Vec](implicit vb: VecCompanion[T]) = vb.zero
 
-  case class NormalException(msg: String = "Cannot get the normal of a 0 vector") extends ArithmeticException(msg)
+  sealed trait Exception extends ArithmeticException
+
+  case class NormalException(msg: String = "Cannot get the normal of a 0 vector") extends ArithmeticException(msg) with Vec.Exception
+  case class NanException(msg: String = "NaN encountered") extends ArithmeticException(msg) with Vec.Exception
 }
 
 trait Vec extends VecOps[Vec] {
@@ -280,7 +283,7 @@ final case class Vec3(x: Double, y: Double, z: Double) extends Vec with VecLike[
   def * (scale: Double) = Vec3(x * scale, y * scale, z * scale).asInstanceOf[this.type]
   def * (other: Vec3): Double = x * other.x + y * other.y + z * other.z
 
-  require(!isNaN, "no NaNs for points/vectors!")
+  if(isNaN) throw Vec.NanException("NaN encountered upn creation")
 
   override def isOrigin = this == Vec3.origin
 
@@ -368,7 +371,7 @@ final case class Vec4(x: Double, y: Double, z: Double, a: Double) extends Vec wi
   def * (scale: Double) = Vec4(x * scale, y * scale, z * scale, a * scale).asInstanceOf[this.type]
   def * (other: Vec4): Double = x * other.x + y * other.y + z * other.z + a * other.a
 
-  require(!isNaN, "no NaNs for points/vectors!")
+  if(isNaN) throw Vec.NanException("NaN encountered upn creation")
 
   override def isOrigin = this == Vec4.origin
 
