@@ -8,7 +8,6 @@ lazy val qlearning = crossProject.in(file("qlearning"))
   .settings(name := "logos-qlearning")
   .settings(Logos.commonSettings: _*)
   .dependsOn(collections)
-
 lazy val qlearningJVM = qlearning.jvm
 lazy val qlearningJs = qlearning.js
 
@@ -23,5 +22,8 @@ lazy val utils = crossProject.in(file("utils"))
   .settings(Logos.commonSettings: _*)
 lazy val utilsJVM = utils.jvm
 lazy val utilsJs = utils.js
+
+lazy val rootJS = Project("logos", file("js")).enablePlugins(ScalaJSPlugin)
+    .dependsOn(collectionsJs, qlearningJs, pathingJs, utilsJs)
 
 Logos.buildSettings

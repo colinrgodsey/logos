@@ -2,23 +2,25 @@ import sbt.Keys._
 import sbt._
 
 import org.scalajs.sbtplugin.ScalaJSPlugin
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
+import ScalaJSPlugin.autoImport._
 
 object Logos {
   def buildSettings = Seq(
     name := "logos",
+    scalaVersion := "2.11.4",
+    organization := "com.colingodsey",
 
     //publish := {},
     //publishLocal := {},
 
-    scalaVersion in ThisBuild := "2.11.4",
-    organization in ThisBuild := "com.colingodsey",
     crossPaths in ThisBuild := true,
     crossScalaVersions in ThisBuild := Seq("2.11.5", "2.10.4"),
 
     publishTo in ThisBuild := Some(Resolver.file("file", file("../maven"))),
 
     version in ThisBuild <<= version in LocalRootProject,
+    organization in ThisBuild <<= organization in LocalRootProject,
+    scalaVersion in ThisBuild <<= scalaVersion in LocalRootProject,
 
     pomExtra in ThisBuild :=
       <url>https://github.com/colinrgodsey/logos</url>
