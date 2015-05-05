@@ -102,6 +102,13 @@ def to[U <: Vec](implicit builder: CanBuildFrom[This, Double, U]): U*/
     else toVec / l
   }
 
+  def safeNormal: Coll = {
+    val l = length
+    if(l == 0) companion.zero
+    else if(l == 1) toVec
+    else normal
+  }
+
   def length1: Double = values.foldLeft(0.0)(_ + math.abs(_))
   def lengthInf: Double = values.iterator.map(math.abs).max
   def isNaN = values.exists(_.isNaN)

@@ -10,8 +10,8 @@ object Logos {
     scalaVersion := "2.11.4",
     organization := "com.colingodsey",
 
-    //publish := {},
-    //publishLocal := {},
+    publish := {},
+    publishLocal := {},
 
     crossPaths in ThisBuild := true,
     crossScalaVersions in ThisBuild := Seq("2.11.5", "2.10.4"),
@@ -43,6 +43,7 @@ object Logos {
         </developers>
   )
 
+  //todo: ditch?
   def commonSettings = Seq(
     libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
     testFrameworks += new TestFramework("utest.runner.Framework")
