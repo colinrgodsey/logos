@@ -65,17 +65,18 @@ object CLA {
   feature = weighted combination of subfeatures features
    */
   case class Node(id: String, feature: VecN = VecN.zero) {
-    val fNormal = feature.safeNormal
+    //val fNormal = feature.safeNormal
     def activationFeature = VecN(id -> 1.0)
   }
 }
 class CLA {
   import CLA._
 
-  def outputFeedbackScalar = 0.3 //internal cognition
+  def inputAlpha = 0.7
   def activationThreshold = 0.2
-  def currentImpulseAlpha = 0.1 //internal recursion
   def errorRatio = 0.01
+  def strengthenRatio = 0.1
+  def weakenRatio = 0.001
 
   var currentImpulse = NoImpulse
   var currentOutput = NoImpulse
@@ -93,14 +94,25 @@ class CLA {
   }*/
   private def calculateOutput(impulse: Impulse): Impulse = {
     //TODO: order is probably super important here
-    val sumActivation = nodes.map { node =>
-      val dot = node.fNormal * impulse
+    var sumActivation = NoImpulse
 
-      if (dot > activationThreshold) node.activationFeature
-      else NoImpulse
-    }.sum
+    nodes = nodes.map { node =>
+      val dot = node.feature * impulse
+      //val dot = math.max(node.feature * impulse, node.activationFeature * impulse)
 
-    impulse * currentImpulseAlpha + sumActivation * (1.0 - currentImpulseAlpha)
+      val newFeature = if (dot > activationThreshold) {
+        sumActivation += node.activationFeature
+
+        node.feature// + impulse * strengthenRatio
+      } else {
+        node.feature// * (1.0 - weakenRatio)
+      }
+
+      node.copy(feature = newFeature)
+    }
+
+    //impulse * currentImpulseAlpha + sumActivation * (1.0 - currentImpulseAlpha)
+    sumActivation
   }
 
   //maybe think when sensory input gets too low (below a certain threshold)
@@ -119,7 +131,7 @@ class CLA {
   }
 
   def learn(error: Impulse): Unit = {
-    nodes = nodes map { node =>
+    /*nodes = nodes map { node =>
       val eD = currentImpulse.safeNormal * node.fNormal
       val newFeature = if(eD > 0) {
         error * (eD * errorRatio) + node.feature
@@ -128,7 +140,7 @@ class CLA {
       //val newFeature = error * (eD * errorRatio) + node.feature
 
       node.copy(feature = newFeature)
-    }
+    }*/
   }
 
   /*
@@ -137,9 +149,7 @@ class CLA {
 
   Return output impulse
    */
-  def advance(impulse0: Impulse = NoImpulse): Impulse = {
-    val impulse = impulse0.safeNormal
-
+  def advance(impulse: Impulse = NoImpulse): Impulse = {
     //error vector
     //val error = impulse - currentOutput
     val error = impulse - currentImpulse
@@ -149,9 +159,10 @@ class CLA {
 
     //TODO: currentImpulse for recursion?
     //TODO: normal or not?
-    //currentImpulse = impulse * (1.0 - outputAlpha) + currentOutput * outputAlpha
-    currentImpulse = (impulse + currentOutput * outputFeedbackScalar).safeNormal
-    currentOutput = calculateOutput(currentImpulse).safeNormal
+    //currentImpulse = impulse * (1.0 - outputAlpha) + currentOutput.safeNormal * outputAlpha * impulse.length
+    //currentImpulse = impulse + currentOutput.safeNormal
+    currentImpulse = currentImpulse * (1.0 - inputAlpha) + impulse + currentOutput
+    currentOutput = calculateOutput(currentImpulse)
 
     currentOutput
   }

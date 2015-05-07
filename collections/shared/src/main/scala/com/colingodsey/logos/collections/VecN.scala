@@ -76,7 +76,9 @@ trait VecN extends Vec with VecLike[VecN] {
 		}.toMap)
 	}
 	def * (scale: Double): VecN = {
-		companion(weights.iterator.map { case (k, v) =>
+    if(scale == 1) this
+    else if(scale == 0) VecN.zero
+		else companion(weights.iterator.map { case (k, v) =>
 			k -> (apply(k) * scale)
 		}.toMap)
 	}
