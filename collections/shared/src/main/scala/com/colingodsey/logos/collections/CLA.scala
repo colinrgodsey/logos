@@ -95,15 +95,15 @@ class CLA {
     //TODO: order is probably super important here
     val sumActivation = nodes.map { node =>
       val dot = node.fNormal * impulse
-      if (dot > activationThreshold) {
-        node.activationFeature * dot
-      } else NoImpulse
+
+      if (dot > activationThreshold) node.activationFeature
+      else NoImpulse
     }.sum
 
     impulse * currentImpulseAlpha + sumActivation * (1.0 - currentImpulseAlpha)
   }
 
-  //maybe think when sensory input gets too low (below a certain length)
+  //maybe think when sensory input gets too low (below a certain threshold)
   def think(): Unit = advance(currentImpulse)
 
   //add random weights
@@ -121,11 +121,11 @@ class CLA {
   def learn(error: Impulse): Unit = {
     nodes = nodes map { node =>
       val eD = currentImpulse.safeNormal * node.fNormal
-      /*val newFeature = if(eD > 0) {
+      val newFeature = if(eD > 0) {
         error * (eD * errorRatio) + node.feature
-      } else node.feature*/
+      } else node.feature
 
-      val newFeature = error * (eD * errorRatio) + node.feature
+      //val newFeature = error * (eD * errorRatio) + node.feature
 
       node.copy(feature = newFeature)
     }
@@ -137,7 +137,9 @@ class CLA {
 
   Return output impulse
    */
-  def advance(impulse: Impulse = NoImpulse): Impulse = {
+  def advance(impulse0: Impulse = NoImpulse): Impulse = {
+    val impulse = impulse0.safeNormal
+
     //error vector
     //val error = impulse - currentOutput
     val error = impulse - currentImpulse
@@ -148,8 +150,8 @@ class CLA {
     //TODO: currentImpulse for recursion?
     //TODO: normal or not?
     //currentImpulse = impulse * (1.0 - outputAlpha) + currentOutput * outputAlpha
-    currentImpulse = (impulse + currentOutput * outputFeedbackScalar).normal
-    currentOutput = calculateOutput(currentImpulse)
+    currentImpulse = (impulse + currentOutput * outputFeedbackScalar).safeNormal
+    currentOutput = calculateOutput(currentImpulse).safeNormal
 
     currentOutput
   }

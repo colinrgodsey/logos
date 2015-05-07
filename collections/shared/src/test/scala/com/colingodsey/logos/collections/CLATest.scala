@@ -24,6 +24,8 @@ object CLATest extends TestSuite {
       for(_ <- 0 until 100) cla.advance(VecN("glass" -> 1.0, "round" -> 4.0, "fabric" -> 1.0))
       for(_ <- 0 until 100) cla.advance(VecN("glass" -> 0.7, "fabric" -> 0.9))
       for(_ <- 0 until 100) cla.advance(VecN("round" -> 1.0))
+      for(_ <- 0 until 100) cla.advance(VecN("wine" -> 1.0))
+      for(_ <- 0 until 100) cla.advance(VecN("glass" -> 1.0, "round" -> 4.0, "fabric" -> 1.0))
       for(_ <- 0 until 100) cla.advance()
       for(_ <- 0 until 1700) cla.think()
 
@@ -39,19 +41,17 @@ object CLATest extends TestSuite {
       "and test" - {
         val a = Node("a")
         val b = Node("b")
-        val a1b1 = Node("a1b1")
-        val a0b0 = Node("a0b0")
-        val a1b0 = Node("a1b0")
-        val a0b1 = Node("a0b1")
         val t = Node("t")
         val f = Node("f")
 
+        val innerNodes = for(i <- 0 until 20) yield Node("_" + i)
+
         val cla = new CLA
-        cla.nodes = Set(a, b, a1b1, a0b0, a1b0, a0b1, t, f)
+        cla.nodes = Set(a, b, t, f) ++ innerNodes
 
-        cla.shake(0.3)
+        cla.shake(1)
 
-        for(_ <- 0 until 60) {
+        for(_ <- 0 until 10) {
           for (_ <- 0 until 200) cla.advance(VecN("a" -> 1.0, "b" -> 1.0, "t" -> 1.0))
           for (_ <- 0 until 50) cla.think()
           for (_ <- 0 until 200) cla.advance(VecN("a" -> 1.0, "f" -> 1.0))
@@ -67,9 +67,11 @@ object CLATest extends TestSuite {
         for(_ <- 0 until 10) cla.advance(VecN("a" -> 10.0, "b" -> 10.0))
 
         val out = cla.advance(VecN("a" -> 10.0, "b" -> 10.0)).normal
-        val sorted = out.weights.toSeq.sortBy(-_._2)
+        val sorted = out.weights.toSeq.sortBy(-_._2).filter(x => !x._1.startsWith("_"))
 
         println(sorted)
+
+        //assert(sorted(2)._1 == "a")
       }
     }
   }
