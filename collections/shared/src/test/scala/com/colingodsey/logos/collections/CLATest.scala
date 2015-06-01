@@ -5,8 +5,41 @@ import scala.util.control.NonFatal
 import utest._
 
 object CLATest extends TestSuite {
-  import CLA._
 
+  val config = FinalCLA.DefaultConfig.copy(inputWidth = 80,
+    regionWidth = 128, minOverlap = 5, inputConnectionsPerColumn = 60)
+
+  val tests = TestSuite {
+    def toBoolArray(seq: Int*) = seq.flatMap {
+      case 0 => Seq.fill(6)(false)
+      case _ => Seq.fill(6)(true)
+    }.toArray
+
+    val A = toBoolArray(1,0,0,0,0,0,0,0,0,0,0)
+    val B = toBoolArray(0,0,0,0,1,0,0,0,0,0,0)
+    val C = toBoolArray(0,0,0,0,0,0,0,1,0,0,0)
+    val D = toBoolArray(0,0,0,0,0,0,0,0,0,0,1)
+
+    "run test" - {
+      val region = new Region(config)
+
+      region.seedDistalSynapses()
+
+      for(_ <- 0 until 100) {
+        region.update(A)
+        region.update(B)
+        region.update(C)
+        region.update(D)
+      }
+
+      println(region.columns.filter(_.active).mkString("\n"))
+      println(region.columns.map(_.boost))
+      println(region.columns.map(_.overlap))
+    }
+  }
+
+/*
+import CLA._
   val tests = TestSuite {
     "car test" - {
       val window = Node("window", VecN("glass" -> 1.0))
@@ -82,5 +115,5 @@ object CLATest extends TestSuite {
         //assert(sorted(2)._1 == "a")
       }
     }
-  }
+  }*/
 }

@@ -72,11 +72,12 @@ object CLA {
 class CLA {
   import CLA._
 
-  def inputAlpha = 0.7
+  def inputRecurseRatio = 0.3
   def activationThreshold = 0.2
   def errorRatio = 0.01
   def strengthenRatio = 0.1
   def weakenRatio = 0.001
+  def impulseActivationAlpha = 0.00001
 
   var currentImpulse = NoImpulse
   var currentOutput = NoImpulse
@@ -96,6 +97,8 @@ class CLA {
     //TODO: order is probably super important here
     var sumActivation = NoImpulse
 
+    val impulseNormal = impulse.normal
+
     nodes = nodes.map { node =>
       val dot = node.feature * impulse
       //val dot = math.max(node.feature * impulse, node.activationFeature * impulse)
@@ -103,7 +106,12 @@ class CLA {
       val newFeature = if (dot > activationThreshold) {
         sumActivation += node.activationFeature
 
-        node.feature// + impulse * strengthenRatio
+        //node.feature// + impulse * strengthenRatio
+
+        //when activating, reduce the least important dimensions
+        //aka, blend towards impulse. keep magnitude uniform
+        node.feature * (1.0 - impulseActivationAlpha) +
+            impulseNormal * (impulseActivationAlpha * node.feature.length)
       } else {
         node.feature// * (1.0 - weakenRatio)
       }
@@ -157,11 +165,7 @@ class CLA {
     //errr should really affect boolean states.... not floating point
     learn(error)
 
-    //TODO: currentImpulse for recursion?
-    //TODO: normal or not?
-    //currentImpulse = impulse * (1.0 - outputAlpha) + currentOutput.safeNormal * outputAlpha * impulse.length
-    //currentImpulse = impulse + currentOutput.safeNormal
-    currentImpulse = currentImpulse * (1.0 - inputAlpha) + impulse + currentOutput
+    currentImpulse = currentImpulse * inputRecurseRatio + impulse + currentOutput
     currentOutput = calculateOutput(currentImpulse)
 
     currentOutput
