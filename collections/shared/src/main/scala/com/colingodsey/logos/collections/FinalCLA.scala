@@ -8,7 +8,7 @@ object FinalCLA {
     minOverlap: Int = 13,
     seededDistalConnections: Int = 20,
     connectionThreshold: Double = 0.2,
-    maxDistalDendrites: Int = 5,
+    maxDistalDendrites: Int = 8,
     columnHeight: Int = 32,
     regionWidth: Int = 2048,
     inputWidth: Int = 128,
@@ -36,10 +36,12 @@ object FinalCLA {
 }
 
 case class ScalarEncoder(val length: Int, size: Int, max: Double = 1.0) {//extends FinalCLA.Input {
+  val lengthMinusSize = length - size
+
   def encode(x: Double): FinalCLA.Input = new AnyRef {
     val value = math.max(0, x) / max
-    val areaMax = (length * value + size).toInt
-    val areaMin = (length * value - size).toInt
+    val areaMax = (lengthMinusSize * value + size).toInt
+    val areaMin = (lengthMinusSize * value).toInt
 
     def length = ScalarEncoder.this.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
@@ -91,7 +93,10 @@ class Region(val config: FinalCLA.Config) { region =>
 
   def spatialPooler(): Unit = {
     //clear activation state and update input
-    columns.foreach(_.active = false)
+    columns.foreach { column =>
+      column.active = false
+      column.proximalDendrite.update()
+    }
 
     //TODO: real inhibition radius?
     val sorted = columns.sortBy(-_.overlap)
@@ -116,19 +121,22 @@ class Region(val config: FinalCLA.Config) { region =>
     columns.foreach(_.seedDistalSynapses())
   }
 
-  def getRandomCell: NeuralNode = {
+  def getRandomCell(refColumn: Column): NeuralNode = {
     val column = columns((columns.length * math.random).toInt)
-    column.cells((column.cells.length * math.random).toInt)
+
+    //TODO: ignore same column... or no?
+    if(column == refColumn) getRandomCell(refColumn)
+    else column.cells((column.cells.length * math.random).toInt)
   }
 
-  class Column(val loc: Location) { column =>
+  final class Column(val loc: Location) { column =>
     val cells = Array.fill(columnHeight)(new Cell)
 
     var active = false
     var proximalDendrite = createProximalDendrite
     var boost = 0.0
-    var activeDutyCycle = RollingAverage()(100)
-    var overlapDutyCycle = RollingAverage()(100)
+    var activeDutyCycle = RollingAverage()(10)
+    var overlapDutyCycle = RollingAverage()(10)
 
     val cellIndexes = 0 until columnHeight
 
@@ -198,8 +206,7 @@ class Region(val config: FinalCLA.Config) { region =>
       activeDutyCycle += (if(active) 1 else 0)
       overlapDutyCycle += overlap
 
-      if(activeDutyCycle.toDouble < minDutyCycle)
-        boost += boostIncr
+      if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
       else boost = 0
 
       //enforce all synapses a small amount
@@ -211,7 +218,7 @@ class Region(val config: FinalCLA.Config) { region =>
         proximalDendrite.synapses = synapses
       }
 
-      inhibitionRadius = averageReceptiveFieldSize / 2.0
+      inhibitionRadius = averageReceptiveFieldSize// / 2.0
     }
 
     def updatePermanence(): Unit = if(active) {
@@ -281,12 +288,13 @@ class Region(val config: FinalCLA.Config) { region =>
       segments = Seq.fill(nSegments)(new DendriteSegment)
       _ = cell.distalDendrite.segments = segments.toSet
       segment <- segments
-      otherCells = Seq.fill(seededDistalConnections)(getRandomCell)
+      otherCells = Seq.fill(seededDistalConnections)(getRandomCell(column))
       otherCell <- otherCells
     } segment.synapses += otherCell -> getRandomPermanence
 
+    //TODO: when should we clear 'predictive' ?
     //TODO: actual distal segments, not just the 1 fixed one
-    class Cell extends NeuralNode {
+    final class Cell extends NeuralNode {
       var predictive = false
       private var _active = false
 
@@ -316,22 +324,16 @@ class Region(val config: FinalCLA.Config) { region =>
     }
   }
 
-  class DendriteSegment(var synapses: Map[NeuralNode, Double] = Map.empty) extends NeuralNode {
+  final class DendriteSegment(var synapses: Map[NeuralNode, Double] = Map.empty) extends NeuralNode {
     var active = false
+    var activation = 0
+    var receptive = 0
     //var sequenceSegment = false
 
     def threshold = segmentThreshold
 
-    def receptive = synapses.count {
-      case (node, p) => p > connectionThreshold
-    }
-
-    def activation = synapses.count {
-      case (node, p) =>
-        p > connectionThreshold && node.active
-    }
-
-    def reinforce(): Unit = {
+    //TODO: min activation?
+    def reinforce(): Unit = /*if(activation > minActivation)*/ {
       synapses = synapses map {
         case (node, p) =>
           val newP =
@@ -344,19 +346,21 @@ class Region(val config: FinalCLA.Config) { region =>
 
 
     def update(): Unit = {
-      active = false
-
-      //we activatd. lets also reinforce
-      if(activation > threshold) {
-        active = true
-
-        //reinforce()
+      activation = synapses.count {
+        case (node, p) =>
+          p > connectionThreshold && node.active
       }
+
+      receptive = synapses.count {
+        case (node, p) => p > connectionThreshold
+      }
+
+      active = activation > threshold
     }
   }
 
   //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
-  class DistalDendrite extends NeuralNode {
+  final class DistalDendrite extends NeuralNode {
     var active = false
     var segments = Set[DendriteSegment]()
 
