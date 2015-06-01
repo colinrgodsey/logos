@@ -282,6 +282,7 @@ class Region(val config: FinalCLA.Config) { region =>
       updatePermanence()
     }
 
+    //TODO: seed favouring locality
     def seedDistalSynapses(): Unit = for {
       cell <- cells
       nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
