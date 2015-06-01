@@ -2,6 +2,10 @@ package com.colingodsey.logos.collections
 
 import scala.collection.mutable
 
+/*
+Future ideas:
+  Neurotransmitter-like VecN 'cloud'. Eventual localized distribution of modulator values (VecN?)
+ */
 object FinalCLA {
   case class Config(
     segmentThreshold: Int = 13,
@@ -142,7 +146,7 @@ class Region(val config: FinalCLA.Config) { region =>
 
     val cellIndexes = 0 until columnHeight
 
-    val inputMap = {
+    val inputMap: IndexedSeq[Int] = {
       var outSet = Set[Int]()
       var out = Seq[Int]()
       var added = 0
@@ -157,7 +161,7 @@ class Region(val config: FinalCLA.Config) { region =>
         }
       }
 
-      out.toIndexedSeq
+      out.toArray
     }
 
     def input(idx: Int) = regionInput(inputMap(idx))
@@ -286,8 +290,8 @@ class Region(val config: FinalCLA.Config) { region =>
     def seedDistalSynapses(): Unit = for {
       cell <- cells
       nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
-      segments = Seq.fill(nSegments)(new DendriteSegment)
-      _ = cell.distalDendrite.segments = segments.toSet
+      segments = IndexedSeq.fill(nSegments)(new DendriteSegment)
+      _ = cell.distalDendrite.segments = segments
       segment <- segments
       otherCells = Seq.fill(seededDistalConnections)(getRandomCell(column))
       otherCell <- otherCells
@@ -320,8 +324,9 @@ class Region(val config: FinalCLA.Config) { region =>
       }
 
       def seedDistal(n: Int): Unit = {
-        val segments = distalDendrite.segments.toIndexedSeq
+        val segments = distalDendrite.segments
 
+        //TODO: only find semi active columns?
         for {
           i <- 0 until n
           segment = segments((math.random * segments.length).toInt)
@@ -366,11 +371,11 @@ class Region(val config: FinalCLA.Config) { region =>
     def pruneSynapses(): Int = {
       var pruned = 0
 
-      synapses = synapses flatMap {
+      synapses = synapses filter {
         case (node, p) if p < minDistalPermanence =>
           pruned += 1
-          None
-        case a => Some(a)
+          false
+        case a => true
       }
 
       pruned
@@ -393,7 +398,7 @@ class Region(val config: FinalCLA.Config) { region =>
   //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
   final class DistalDendrite extends NeuralNode {
     var active = false
-    var segments = Set[DendriteSegment]()
+    var segments = IndexedSeq[DendriteSegment]()
 
     def mostActive = segments.toStream.sortBy(-_.activation).headOption
 
