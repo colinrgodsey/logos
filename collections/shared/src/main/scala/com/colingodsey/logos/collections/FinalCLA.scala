@@ -1,11 +1,14 @@
 package com.colingodsey.logos.collections
 
+import scala.collection.mutable
+
 object FinalCLA {
   case class Config(
     segmentThreshold: Int = 13,
     minOverlap: Int = 13,
     seededDistalConnections: Int = 20,
     connectionThreshold: Double = 0.2,
+    maxDistalDendrites: Int = 5,
     columnHeight: Int = 32,
     regionWidth: Int = 2048,
     inputWidth: Int = 128,
@@ -24,6 +27,7 @@ object FinalCLA {
   type Input = {
     def length: Int
     def apply(idx: Int): Boolean
+    def toSeq: Seq[Boolean]
   }
 
   type Location = Int
@@ -39,6 +43,8 @@ case class ScalarEncoder(val length: Int, size: Int, max: Double = 1.0) {//exten
 
     def length = ScalarEncoder.this.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
+
+    def toSeq = for(i <- 0 until length) yield apply(i)
   }
 }
 
@@ -108,6 +114,11 @@ class Region(val config: FinalCLA.Config) { region =>
 
   def seedDistalSynapses(): Unit = {
     columns.foreach(_.seedDistalSynapses())
+  }
+
+  def getRandomCell: NeuralNode = {
+    val column = columns((columns.length * math.random).toInt)
+    column.cells((column.cells.length * math.random).toInt)
   }
 
   class Column(val loc: Location) { column =>
@@ -210,8 +221,18 @@ class Region(val config: FinalCLA.Config) { region =>
     //active columns will 'tick' predictive state of cells
     def temporalPrePooler(): Unit = if(active) {
       cells.foreach(_.computePredictive())
+
+      val hasPredictive = cells.exists(_.predictive)
+
+      if(hasPredictive) {
+        //TODO: most predictive only
+        cells.filter(_.predictive).foreach(_.distalDendrite.reinforce())
+      } else {
+        cells.foreach(_.distalDendrite.reinforce())
+      }
     }
 
+    //TODO: learning cell and sequence segments
     def temporalPostPooler(): Unit = if(active) {
       cells.foreach(_.activateIfPredicted())
 
@@ -227,18 +248,36 @@ class Region(val config: FinalCLA.Config) { region =>
       //deactivate all
       cells.foreach(_.deactivate())
     }
+/*
+    def temporalPooler(): Unit = if(active) {
+      var predicted = false
+      var learningCellChosen = false
+
+      val queue = new mutable.Queue[() => Unit]()
+
+      cells foreach { cell =>
+        if(cell.predictive) {
+          cell.distalDendrite.mostActive match {
+            case Some(x) if x.sequenceSegment =>
+
+              queue += { () =>
+
+              }
+
+            case None =>
+          }
+        }
+      }
+    }*/
 
     def activate(): Unit = {
       active = true
       updatePermanence()
     }
 
-    def getRandomCell =
-      cells((cells.length * math.random).toInt)
-
     def seedDistalSynapses(): Unit = for {
       cell <- cells
-      nSegments = (math.random * 5 + 1).toInt
+      nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
       segments = Seq.fill(nSegments)(new DendriteSegment)
       _ = cell.distalDendrite.segments = segments.toSet
       segment <- segments
@@ -249,9 +288,11 @@ class Region(val config: FinalCLA.Config) { region =>
     //TODO: actual distal segments, not just the 1 fixed one
     class Cell extends NeuralNode {
       var predictive = false
-      var active = false
+      private var _active = false
 
       val distalDendrite = new DistalDendrite
+
+      def active = _active
 
       def computePredictive(): Unit = {
         distalDendrite.update()
@@ -260,22 +301,24 @@ class Region(val config: FinalCLA.Config) { region =>
       }
 
       def deactivate(): Unit = {
-        active = false
+        _active = false
         predictive = false
       }
 
       def activate(): Unit = {
-        active = true
+        _active = true
         predictive = false
       }
 
-      def activateIfPredicted(): Unit =
-        if(predictive) activate() else deactivate()
+      def activateIfPredicted(): Unit = {
+        if (predictive) activate() else deactivate()
+      }
     }
   }
 
   class DendriteSegment(var synapses: Map[NeuralNode, Double] = Map.empty) extends NeuralNode {
     var active = false
+    //var sequenceSegment = false
 
     def threshold = segmentThreshold
 
@@ -299,6 +342,7 @@ class Region(val config: FinalCLA.Config) { region =>
       }
     }
 
+
     def update(): Unit = {
       active = false
 
@@ -306,7 +350,7 @@ class Region(val config: FinalCLA.Config) { region =>
       if(activation > threshold) {
         active = true
 
-        reinforce()
+        //reinforce()
       }
     }
   }
@@ -316,10 +360,14 @@ class Region(val config: FinalCLA.Config) { region =>
     var active = false
     var segments = Set[DendriteSegment]()
 
+    def mostActive = segments.toStream.sortBy(-_.activation).headOption
+
     def update(): Unit = {
       segments.foreach(_.update())
 
       active = segments.exists(_.active)
     }
+
+    def reinforce(): Unit = segments.foreach(_.reinforce())
   }
 }

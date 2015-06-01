@@ -7,24 +7,21 @@ import utest._
 object CLATest extends TestSuite {
 
   val config = FinalCLA.DefaultConfig.copy(inputWidth = 80,
-    desiredLocalActivity = 4,
-    regionWidth = 128, minOverlap = 3, inputConnectionsPerColumn = 40)
+    desiredLocalActivity = 20, maxDistalDendrites = 8,
+    seededDistalConnections = 40,
+    regionWidth = 128, minOverlap = 4, inputConnectionsPerColumn = 30)
 
   val tests = TestSuite {
-    def toBoolArray(seq: Int*) = seq.flatMap {
-      case 0 => Seq.fill(6)(false)
-      case _ => Seq.fill(6)(true)
-    }.toArray
-
-    val encoder = new ScalarEncoder(config.inputWidth, 9)
+    val encoder = new ScalarEncoder(config.inputWidth, 5)
 
     "run test" - {
       val region = new Region(config)
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 300) {
+      for(_ <- 0 until 200) {
         region.update(encoder.encode(0))
+        //region.update(encoder.encode(math.random))
         region.update(encoder.encode(0.25))
         region.update(encoder.encode(0.5))
         region.update(encoder.encode(1))
