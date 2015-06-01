@@ -8,7 +8,7 @@ object FinalCLA {
     minOverlap: Int = 13,
     seededDistalConnections: Int = 20,
     connectionThreshold: Double = 0.2,
-    maxDistalDendrites: Int = 8,
+    maxDistalDendrites: Int = 3,
     columnHeight: Int = 32,
     regionWidth: Int = 2048,
     inputWidth: Int = 128,
@@ -18,7 +18,8 @@ object FinalCLA {
     desiredLocalActivity: Int = 40,
     dutyAverageFrames: Int = 10,
     permanenceInc: Double = 0.01,
-    permanenceDec: Double = 0.005
+    permanenceDec: Double = 0.005,
+    minDistalPermanence: Double = 0.005
   ) {
 
   }
@@ -109,7 +110,7 @@ class Region(val config: FinalCLA.Config) { region =>
     //update rolling averages
     columns.foreach(_.updateDutyCycle())
 
-    inhibitionRadius = averageReceptiveFieldSize
+    inhibitionRadius = averageReceptiveFieldSize / columnHeight * regionWidth / 2.0
   }
 
   def averageReceptiveFieldSize = {
@@ -218,8 +219,6 @@ class Region(val config: FinalCLA.Config) { region =>
 
         proximalDendrite.synapses = synapses
       }
-
-      inhibitionRadius = averageReceptiveFieldSize// / 2.0
     }
 
     def updatePermanence(): Unit = if(active) {
@@ -234,9 +233,9 @@ class Region(val config: FinalCLA.Config) { region =>
 
       if(hasPredictive) {
         //TODO: most predictive only
-        cells.filter(_.predictive).foreach(_.distalDendrite.reinforce())
+        cells.filter(_.predictive).foreach(_.reinforceDistal())
       } else {
-        cells.foreach(_.distalDendrite.reinforce())
+        cells.foreach(_.reinforceDistal())
       }
     }
 
@@ -319,6 +318,24 @@ class Region(val config: FinalCLA.Config) { region =>
         predictive = false
       }
 
+      def seedDistal(n: Int): Unit = {
+        val segments = distalDendrite.segments.toIndexedSeq
+
+        for {
+          i <- 0 until n
+          segment = segments((math.random * segments.length).toInt)
+          otherCell = getRandomCell(column)
+        } segment.synapses += otherCell -> getRandomPermanence
+      }
+
+      def reinforceDistal(): Unit = {
+        val pruned = distalDendrite.pruneSynapses()
+
+        if(pruned > 0) seedDistal(pruned)
+
+        distalDendrite.reinforce()
+      }
+
       def activateIfPredicted(): Unit = {
         if (predictive) activate() else deactivate()
       }
@@ -345,6 +362,18 @@ class Region(val config: FinalCLA.Config) { region =>
       }
     }
 
+    def pruneSynapses(): Int = {
+      var pruned = 0
+
+      synapses = synapses flatMap {
+        case (node, p) if p < minDistalPermanence =>
+          pruned += 1
+          None
+        case a => Some(a)
+      }
+
+      pruned
+    }
 
     def update(): Unit = {
       activation = synapses.count {
@@ -374,5 +403,7 @@ class Region(val config: FinalCLA.Config) { region =>
     }
 
     def reinforce(): Unit = segments.foreach(_.reinforce())
+
+    def pruneSynapses(): Int = segments.map(_.pruneSynapses()).sum
   }
 }
