@@ -16,6 +16,7 @@ object FinalCLA {
     dutyAlpha: Double = 0.9,
     boostIncr: Double = 0.05,
     desiredLocalActivity: Int = 40,
+    dutyAverageFrames: Int = 10,
     permanenceInc: Double = 0.01,
     permanenceDec: Double = 0.005
   ) {
@@ -135,8 +136,8 @@ class Region(val config: FinalCLA.Config) { region =>
     var active = false
     var proximalDendrite = createProximalDendrite
     var boost = 0.0
-    var activeDutyCycle = RollingAverage()(10)
-    var overlapDutyCycle = RollingAverage()(10)
+    var activeDutyCycle = RollingAverage()(dutyAverageFrames)
+    var overlapDutyCycle = RollingAverage()(dutyAverageFrames)
 
     val cellIndexes = 0 until columnHeight
 
@@ -338,7 +339,7 @@ class Region(val config: FinalCLA.Config) { region =>
         case (node, p) =>
           val newP =
             if (node.active) math.min(1.0, p + permanenceInc)
-            else math.max(0.0, p + permanenceDec)
+            else math.max(0.0, p - permanenceDec)
 
           node -> newP
       }
