@@ -7,7 +7,8 @@ import utest._
 object CLATest extends TestSuite {
 
   val config = FinalCLA.DefaultConfig.copy(inputWidth = 80,
-    regionWidth = 128, minOverlap = 5, inputConnectionsPerColumn = 60)
+    desiredLocalActivity = 4,
+    regionWidth = 128, minOverlap = 3, inputConnectionsPerColumn = 40)
 
   val tests = TestSuite {
     def toBoolArray(seq: Int*) = seq.flatMap {
@@ -15,21 +16,18 @@ object CLATest extends TestSuite {
       case _ => Seq.fill(6)(true)
     }.toArray
 
-    val A = toBoolArray(1,0,0,0,0,0,0,0,0,0,0)
-    val B = toBoolArray(0,0,0,0,1,0,0,0,0,0,0)
-    val C = toBoolArray(0,0,0,0,0,0,0,1,0,0,0)
-    val D = toBoolArray(0,0,0,0,0,0,0,0,0,0,1)
+    val encoder = new ScalarEncoder(config.inputWidth, 9)
 
     "run test" - {
       val region = new Region(config)
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 100) {
-        region.update(A)
-        region.update(B)
-        region.update(C)
-        region.update(D)
+      for(_ <- 0 until 300) {
+        region.update(encoder.encode(0))
+        region.update(encoder.encode(0.25))
+        region.update(encoder.encode(0.5))
+        region.update(encoder.encode(1))
       }
 
       println(region.columns.filter(_.active).mkString("\n"))

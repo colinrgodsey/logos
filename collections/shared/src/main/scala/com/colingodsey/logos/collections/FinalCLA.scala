@@ -21,11 +21,25 @@ object FinalCLA {
 
   val DefaultConfig = Config()
 
-  type Input = Array[Boolean]
+  type Input = {
+    def length: Int
+    def apply(idx: Int): Boolean
+  }
 
   type Location = Int
 
   type Radius = Double
+}
+
+case class ScalarEncoder(val length: Int, size: Int, max: Double = 1.0) {//extends FinalCLA.Input {
+  def encode(x: Double): FinalCLA.Input = new AnyRef {
+    val value = math.max(0, x) / max
+    val areaMax = (length * value + size).toInt
+    val areaMin = (length * value - size).toInt
+
+    def length = ScalarEncoder.this.length
+    def apply(idx: Int) = idx < areaMax && idx >= areaMin
+  }
 }
 
 trait NeuralNode {
