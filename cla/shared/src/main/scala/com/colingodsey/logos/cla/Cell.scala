@@ -39,7 +39,7 @@ final class Cell(val column: Column) extends NeuralNode {
       i <- 0 until n
       segment = segments((math.random * segments.length).toInt)
       otherCell = region.getRandomCell(column)
-    } segment.synapses += otherCell -> region.getRandomPermanence
+    } segment.synapses :+= otherCell -> region.getRandomPermanence
   }
 
   def reinforceDistal(): Unit = {

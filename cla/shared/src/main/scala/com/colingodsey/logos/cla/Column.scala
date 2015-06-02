@@ -2,9 +2,7 @@ package com.colingodsey.logos.cla
 
 import com.colingodsey.logos.collections.RollingAverage
 
-/**
- * Created by crgodsey on 6/2/15.
- */
+
 final class Column(val region: Region, val loc: CLA.Location) { column =>
   import region.config
   import config._
@@ -14,8 +12,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var active = false
   var proximalDendrite = createProximalDendrite
   var boost = 0.0
-  var activeDutyCycle = RollingAverage()(dutyAverageFrames)
-  var overlapDutyCycle = RollingAverage()(dutyAverageFrames)
+  var activeDutyCycle = RollingAverage(dutyAverageFrames)
+  var overlapDutyCycle = RollingAverage(dutyAverageFrames)
 
   val cellIndexes = 0 until columnHeight
 
@@ -37,7 +35,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     out.toArray
   }
 
-  def input(idx: Int) = region.regionInput(inputMap(idx))
+  def input(idx: Int) = region.input(inputMap(idx))
 
   override def toString = {
     val active = cells.map {
@@ -55,10 +53,10 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
         def active: Boolean = input(idx)
       }
 
-      node -> region.getRandomPermanence
-    }).toMap
+      (node, region.getRandomPermanence)
+    })
 
-    new DendriteSegment(nodes)
+    new DendriteSegment(nodes.toArray.toIndexedSeq)
   }
 
   def overlap = {
@@ -69,7 +67,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
   def receptiveFieldSize = proximalDendrite.receptive
 
-  def neighborsIn(radius: CLA.Radius): Set[Column] = region.columnsNear(loc, radius).toSet
+  def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius)
 
   def updateDutyCycle(): Unit = {
     val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
@@ -132,15 +130,16 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   }
 
   //TODO: seed favouring locality
+  //TODO: multiple connections to same cell?
   def seedDistalSynapses(): Unit = for {
     cell <- cells
     nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
-    segments = IndexedSeq.fill(nSegments)(new DendriteSegment)
+    segments = Array.fill(nSegments)(new DendriteSegment)
     _ = cell.distalDendrite.segments = segments
     segment <- segments
     otherCells = Seq.fill(seededDistalConnections)(region.getRandomCell(column))
     otherCell <- otherCells
-  } segment.synapses += otherCell -> region.getRandomPermanence
+  } segment.synapses :+= otherCell -> region.getRandomPermanence
 
 
 }

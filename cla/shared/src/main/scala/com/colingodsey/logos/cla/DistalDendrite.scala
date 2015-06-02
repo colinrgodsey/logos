@@ -18,5 +18,5 @@ final class DistalDendrite extends NeuralNode {
 
   def reinforce(): Unit = segments.foreach(_.reinforce())
 
-  def pruneSynapses(): Int = segments.map(_.pruneSynapses()).sum
+  def pruneSynapses(): Int = segments.iterator.map(_.pruneSynapses()).sum
 }

@@ -19,7 +19,7 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 600) {
+      for(_ <- 0 until 2000) {
         //region.update(encoder.encode(math.random))
         region.update(encoder.encode(0))
         region.update(encoder.encode(0.25))

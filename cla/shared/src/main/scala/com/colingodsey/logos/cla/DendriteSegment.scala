@@ -3,7 +3,7 @@ package com.colingodsey.logos.cla
 /**
  * Created by crgodsey on 6/2/15.
  */
-final class DendriteSegment(var synapses: Map[NeuralNode, Double] = Map.empty)(
+final class DendriteSegment(var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
     implicit val config: CLA.Config) extends NeuralNode {
   import config._
 
@@ -40,14 +40,20 @@ final class DendriteSegment(var synapses: Map[NeuralNode, Double] = Map.empty)(
   }
 
   def update(): Unit = {
-    activation = synapses.count {
+    var act = 0
+    var rec = 0
+
+    synapses.foreach {
       case (node, p) =>
-        p > connectionThreshold && node.active
+        val r = p > connectionThreshold
+
+        if(r) rec += 1
+
+        if(r && node.active) act += 1
     }
 
-    receptive = synapses.count {
-      case (node, p) => p > connectionThreshold
-    }
+    activation = act
+    receptive = rec
 
     active = activation > threshold
   }

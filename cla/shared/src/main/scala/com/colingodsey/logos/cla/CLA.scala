@@ -39,8 +39,6 @@ object CLA {
   type Radius = Double
 }
 
-
-
 trait NeuralNode {
   def active: Boolean
 }

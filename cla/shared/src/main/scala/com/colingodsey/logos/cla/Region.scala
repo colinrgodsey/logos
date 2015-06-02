@@ -1,30 +1,28 @@
 package com.colingodsey.logos.cla
 
-/**
- * Created by crgodsey on 6/2/15.
- */
+
 class Region(implicit val config: CLA.Config) { region =>
   import com.colingodsey.logos.cla.CLA._
   import config._
 
   val columns = (0 until regionWidth).map(new Column(region, _)).toVector
-  val regionInput = Array.fill(inputWidth)(false)
+  val input = Array.fill(inputWidth)(false)
 
   var inhibitionRadius: Radius = 1.0
 
   def update(input: Input): Unit = {
-    for(i <- 0 until input.length) regionInput(i) = input(i)
+    for(i <- 0 until input.length) this.input(i) = input(i)
 
     spatialPooler()
     columns.foreach(_.temporalPrePooler())
     columns.foreach(_.temporalPostPooler())
   }
 
-  def columnsNear(loc: Location, rad: Radius): Stream[Column] = {
+  def columnsNear(loc: Location, rad: Radius) = {
     val min = math.max(0, loc - rad).toInt
     val max = math.min(regionWidth - 1, loc + rad).toInt
 
-    (min to max).toStream map columns
+    (min to max).iterator map columns
   }
 
   def spatialPooler(): Unit = {
