@@ -11,9 +11,12 @@ final class Cell(val column: Column) extends NeuralNode {
   var predictive = false
   private var _active = false
 
-  val distalDendrite = new DistalDendrite
+  val distalDendrite = new DistalDendrite(column.loc)
 
   def active = _active
+
+  //TODO: verticle offsets?
+  def loc = column.loc
 
   def computePredictive(): Unit = {
     distalDendrite.update()
@@ -30,6 +33,8 @@ final class Cell(val column: Column) extends NeuralNode {
     _active = true
     predictive = false
   }
+
+  def predication = distalDendrite.mostActive.map(_.activation) getOrElse 0
 
   def seedDistal(n: Int): Unit = {
     val segments = distalDendrite.segments

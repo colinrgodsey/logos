@@ -3,11 +3,13 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.cla.encoders.ScalarEncoder
 import utest._
 
+import com.colingodsey.logos.collections.Math.randomNormal
+
 object CLATest extends TestSuite {
 
   implicit val config = CLA.DefaultConfig.copy(inputWidth = 80,
-    desiredLocalActivity = 40,
-    segmentThreshold = 8, seededDistalConnections = 25, maxDistalDendrites = 6,
+    desiredLocalActivity = 10,
+    segmentThreshold = 8, seededDistalConnections = 25, maxDistalDendrites = 2,
     columnHeight = 20,
     regionWidth = 128, minOverlap = 4, inputConnectionsPerColumn = 30)
 
@@ -19,7 +21,7 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 2000) {
+      for(_ <- 0 until 1000) {
         //region.update(encoder.encode(math.random))
         region.update(encoder.encode(0))
         region.update(encoder.encode(0.25))
@@ -39,6 +41,8 @@ object CLATest extends TestSuite {
       println(region.columns.map(_.boost))
       println(region.columns.map(_.overlap))
       println(region.columns.map(_.activeDutyCycle.toDouble))
+      println(region.columns.map(_.overlapDutyCycle.toDouble))
+      println(region.inhibitionRadius)
     }
   }
 

@@ -4,7 +4,7 @@ package com.colingodsey.logos.cla
  * Created by crgodsey on 6/2/15.
  */
 //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
-final class DistalDendrite extends NeuralNode {
+final class DistalDendrite(val loc: CLA.Location) extends NeuralNode {
   var active = false
   var segments = IndexedSeq[DendriteSegment]()
 

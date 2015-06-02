@@ -3,7 +3,9 @@ package com.colingodsey.logos.cla
 /**
  * Created by crgodsey on 6/2/15.
  */
-final class DendriteSegment(var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
+final class DendriteSegment(
+    val loc: CLA.Location,
+    var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
     implicit val config: CLA.Config) extends NeuralNode {
   import config._
 
@@ -13,6 +15,14 @@ final class DendriteSegment(var synapses: IndexedSeq[(NeuralNode, Double)] = Ind
   //var sequenceSegment = false
 
   def threshold = segmentThreshold
+
+  def receptiveRadius = {
+    synapses.iterator.map {
+      case (node, p) if p > connectionThreshold =>
+        math.abs(node.loc - loc)
+      case _ => 0
+    }.max
+  }
 
   //TODO: min activation?
   def reinforce(): Unit = /*if(activation > minActivation)*/ {
@@ -30,10 +40,10 @@ final class DendriteSegment(var synapses: IndexedSeq[(NeuralNode, Double)] = Ind
     var pruned = 0
 
     synapses = synapses filter {
-      case (node, p) if p < minDistalPermanence =>
+      case (_, p) if p < minDistalPermanence =>
         pruned += 1
         false
-      case a => true
+      case _ => true
     }
 
     pruned
@@ -42,14 +52,22 @@ final class DendriteSegment(var synapses: IndexedSeq[(NeuralNode, Double)] = Ind
   def update(): Unit = {
     var act = 0
     var rec = 0
+    var i = 0
 
-    synapses.foreach {
-      case (node, p) =>
-        val r = p > connectionThreshold
+    val l = synapses.length
 
-        if(r) rec += 1
+    while(i < l) {
+      val pair = synapses(i)
+      val node = pair._1
+      val p = pair._2
 
-        if(r && node.active) act += 1
+      val r = p > connectionThreshold
+
+      if(r) rec += 1
+
+      if(r && node.active) act += 1
+
+      i += 1
     }
 
     activation = act

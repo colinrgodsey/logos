@@ -18,7 +18,7 @@ object CLA {
     dutyAlpha: Double = 0.9,
     boostIncr: Double = 0.05,
     desiredLocalActivity: Int = 40,
-    dutyAverageFrames: Int = 10,
+    dutyAverageFrames: Int = 20,
     permanenceInc: Double = 0.01,
     permanenceDec: Double = 0.005,
     minDistalPermanence: Double = 0.005
@@ -41,6 +41,8 @@ object CLA {
 
 trait NeuralNode {
   def active: Boolean
+
+  def loc: CLA.Location
 }
 
 

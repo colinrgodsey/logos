@@ -1,7 +1,7 @@
 package com.colingodsey.logos.cla
 
 import com.colingodsey.logos.collections.RollingAverage
-
+import com.colingodsey.logos.collections.Math.randomNormal
 
 final class Column(val region: Region, val loc: CLA.Location) { column =>
   import region.config
@@ -23,9 +23,10 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     var added = 0
 
     while(added < inputConnectionsPerColumn) {
-      val i = (math.random * inputWidth).toInt
+      //val i = (math.random * inputWidth).toInt
+      val i = (randomNormal(0.2) * inputWidth + loc).toInt
 
-      if(!outSet(i)) {
+      if(i >= 0 && i < inputWidth && !outSet(i)) {
         outSet += i
         out :+= i
         added += 1
@@ -44,19 +45,21 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
       case cell if cell.active => "A"
       case _ => "O"
     }.mkString
-    active
+
+    s"$active loc: $loc "
   }
 
   def createProximalDendrite = {
     val nodes = (0 until inputConnectionsPerColumn map { idx =>
       val node: NeuralNode = new NeuralNode {
         def active: Boolean = input(idx)
+        def loc: CLA.Location = inputMap(idx)
       }
 
       (node, region.getRandomPermanence)
     })
 
-    new DendriteSegment(nodes.toArray.toIndexedSeq)
+    new DendriteSegment(loc, nodes.toArray.toIndexedSeq)
   }
 
   def overlap = {
@@ -65,7 +68,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     (if(activation < minOverlap) 0 else activation) * (1.0 + boost)
   }
 
-  def receptiveFieldSize = proximalDendrite.receptive
+  //def receptiveFieldSize = proximalDendrite.receptive
+  def receptiveFieldSize = proximalDendrite.receptiveRadius
 
   def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius)
 
@@ -74,7 +78,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     val minDutyCycle = 0.01 * maxDutyCycle
 
     activeDutyCycle += (if(active) 1 else 0)
-    overlapDutyCycle += overlap
+    overlapDutyCycle += (if(overlap > minOverlap) 1 else 0)
 
     if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
     else boost = 0
@@ -89,9 +93,20 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     }
   }
 
+  //only for strict inhibition radius
+  def spatialPooler(): Unit = {
+    val sorted = neighborsIn(region.inhibitionRadius).toStream.sortBy(-_.overlap)
+
+    val min = sorted.take(desiredLocalActivity).map(_.overlap).min
+
+    if(overlap >= min) activate()
+  }
+
   def updatePermanence(): Unit = if(active) {
     proximalDendrite.reinforce()
   }
+
+  def learningCell = cells.maxBy(_.predication)
 
   //active columns will 'tick' predictive state of cells
   def temporalPrePooler(): Unit = if(active) {
@@ -99,11 +114,15 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
     val hasPredictive = cells.exists(_.predictive)
 
+    //TODO: only learn one segment at a time?
+    //TODO: only new synapses to learning cells?
     if(hasPredictive) {
-      //TODO: most predictive only
-      cells.filter(_.predictive).foreach(_.reinforceDistal())
+      //TODO: most predictive only, or all predictive?
+      //cells.filter(_.predictive).foreach(_.reinforceDistal())
+      learningCell.reinforceDistal()
     } else {
-      cells.foreach(_.reinforceDistal())
+      //only reinforce the 'learning cell' here (max predication)
+      learningCell.reinforceDistal()
     }
   }
 
@@ -134,7 +153,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   def seedDistalSynapses(): Unit = for {
     cell <- cells
     nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
-    segments = Array.fill(nSegments)(new DendriteSegment)
+    segments = Array.fill(nSegments)(new DendriteSegment(column.loc))
     _ = cell.distalDendrite.segments = segments
     segment <- segments
     otherCells = Seq.fill(seededDistalConnections)(region.getRandomCell(column))

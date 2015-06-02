@@ -1,5 +1,6 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.collections.Math.randomNormal
 
 class Region(implicit val config: CLA.Config) { region =>
   import com.colingodsey.logos.cla.CLA._
@@ -32,17 +33,21 @@ class Region(implicit val config: CLA.Config) { region =>
       column.proximalDendrite.update()
     }
 
-    //TODO: real inhibition radius?
+    /*//TODO: real inhibition radius?
     val sorted = columns.sortBy(-_.overlap)
     val (topK, tail) = sorted.splitAt(desiredLocalActivity)
 
     //activated top columns within our inhibition radius
-    topK.filter(_.overlap > 0).foreach(_.activate())
+    topK.filter(_.overlap > 0).foreach(_.activate())*/
+
+    columns.foreach { column =>
+      column.spatialPooler()
+    }
 
     //update rolling averages
     columns.foreach(_.updateDutyCycle())
 
-    inhibitionRadius = averageReceptiveFieldSize / inputConnectionsPerColumn * regionWidth / 2.0
+    inhibitionRadius = averageReceptiveFieldSize / (inputWidth * 2.0) * regionWidth / 2.0
   }
 
   def averageReceptiveFieldSize = {
@@ -56,11 +61,17 @@ class Region(implicit val config: CLA.Config) { region =>
   }
 
   def getRandomCell(refColumn: Column): NeuralNode = {
-    val column = columns((columns.length * math.random).toInt)
+    //TODO: variance based on inhibitionRadius?
+    val columnSel = refColumn.loc + randomNormal(0.2) * columns.length
+    //TODO: wrap on edges via ring, or cut off via a line?
 
     //TODO: ignore same column... or no?
-    if(column == refColumn) getRandomCell(refColumn)
-    else column.cells((column.cells.length * math.random).toInt)
+    if(columnSel < 0 || columnSel >= columns.length) getRandomCell(refColumn)
+    else {
+      val column = columns(columnSel.toInt)
+      if (column == refColumn) getRandomCell(refColumn)
+      else column.cells((column.cells.length * math.random).toInt)
+    }
   }
 
   def getRandomPermanence = {
