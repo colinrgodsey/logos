@@ -1,6 +1,6 @@
 package com.colingodsey.logos.collections
 
-object Math {
+object ExtraMath {
 
   final val TwoPi = math.Pi * 2
 

@@ -1,8 +1,5 @@
 package com.colingodsey.logos.cla
 
-/**
- * Created by crgodsey on 6/2/15.
- */
 final class DendriteSegment(
     val loc: CLA.Location,
     var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(

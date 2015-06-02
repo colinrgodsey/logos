@@ -1,7 +1,7 @@
 package com.colingodsey.logos.cla
 
 import com.colingodsey.logos.collections.RollingAverage
-import com.colingodsey.logos.collections.Math.randomNormal
+import com.colingodsey.logos.collections.ExtraMath.randomNormal
 
 final class Column(val region: Region, val loc: CLA.Location) { column =>
   import region.config
@@ -15,6 +15,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
 
+  var activeFromPrediction = false
+
   val cellIndexes = 0 until columnHeight
 
   val inputMap: IndexedSeq[Int] = {
@@ -22,9 +24,11 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     var out = Seq[Int]()
     var added = 0
 
+    val inputLoc = loc / regionWidth * inputWidth
+
     while(added < inputConnectionsPerColumn) {
-      //val i = (math.random * inputWidth).toInt
-      val i = (randomNormal(0.2) * inputWidth + loc).toInt
+      val i = (math.random * inputWidth).toInt
+      //val i = (randomNormal(0.25) * inputWidth / 2 + inputLoc).toInt
 
       if(i >= 0 && i < inputWidth && !outSet(i)) {
         outSet += i
@@ -40,8 +44,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
   override def toString = {
     val active = cells.map {
-      case cell if cell.active && cell.predictive => "X"
-      case cell if cell.predictive => "P"
+      case cell if cell.active && activeFromPrediction => "P"
       case cell if cell.active => "A"
       case _ => "O"
     }.mkString
@@ -69,9 +72,9 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   }
 
   //def receptiveFieldSize = proximalDendrite.receptive
-  def receptiveFieldSize = proximalDendrite.receptiveRadius
+  def receptiveFieldRadius = proximalDendrite.receptiveRadius
 
-  def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius)
+  def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius).filter(_ != column)
 
   def updateDutyCycle(): Unit = {
     val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
@@ -95,9 +98,11 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
   //only for strict inhibition radius
   def spatialPooler(): Unit = {
-    val sorted = neighborsIn(region.inhibitionRadius).toStream.sortBy(-_.overlap)
+    val sorted = neighborsIn(region.inhibitionRadius).toStream.
+        map(_.overlap).filter(_ >= minOverlap).sortBy(-_)
 
-    val min = sorted.take(desiredLocalActivity).map(_.overlap).min
+    val min = if(sorted.isEmpty) minOverlap
+    else sorted.take(desiredLocalActivity).min
 
     if(overlap >= min) activate()
   }
@@ -130,14 +135,16 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   def temporalPostPooler(): Unit = if(active) {
     cells.foreach(_.activateIfPredicted())
 
-    val someActive = cells.exists(_.active)
+    activeFromPrediction = cells.exists(_.active)
 
     /*
     if none active from prediction, activate all
     for our 'context-less' activation.
     Otherwise deactivate all.
     */
-    if(!someActive) cells.foreach(_.activate())
+    if(!activeFromPrediction) {
+      cells.foreach(_.activate())
+    }
   } else {
     //deactivate all
     cells.foreach(_.deactivate())

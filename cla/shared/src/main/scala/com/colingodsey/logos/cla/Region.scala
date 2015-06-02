@@ -1,6 +1,7 @@
 package com.colingodsey.logos.cla
 
-import com.colingodsey.logos.collections.Math.randomNormal
+import com.colingodsey.logos.collections.ExtraMath.randomNormal
+import com.colingodsey.logos.collections.RollingAverage
 
 class Region(implicit val config: CLA.Config) { region =>
   import com.colingodsey.logos.cla.CLA._
@@ -9,7 +10,11 @@ class Region(implicit val config: CLA.Config) { region =>
   val columns = (0 until regionWidth).map(new Column(region, _)).toVector
   val input = Array.fill(inputWidth)(false)
 
-  var inhibitionRadius: Radius = 1.0
+  var inhibitionRadiusAverage = RollingAverage(dutyAverageFrames)
+
+  inhibitionRadiusAverage += regionWidth / 2.0
+
+  def inhibitionRadius: Radius = math.max(inhibitionRadiusAverage.toDouble, 3)
 
   def update(input: Input): Unit = {
     for(i <- 0 until input.length) this.input(i) = input(i)
@@ -25,6 +30,11 @@ class Region(implicit val config: CLA.Config) { region =>
 
     (min to max).iterator map columns
   }
+
+  def numActiveFromPrediction = columns.count(column => column.active && column.activeFromPrediction)
+  def numActive = columns.count(_.active)
+
+  def anomalyScore = 1.0 - numActiveFromPrediction / numActive.toDouble
 
   def spatialPooler(): Unit = {
     //clear activation state and update input
@@ -47,13 +57,16 @@ class Region(implicit val config: CLA.Config) { region =>
     //update rolling averages
     columns.foreach(_.updateDutyCycle())
 
-    inhibitionRadius = averageReceptiveFieldSize / (inputWidth * 2.0) * regionWidth / 2.0
+    inhibitionRadiusAverage += averageReceptiveFieldRadius / inputWidth * regionWidth
   }
 
-  def averageReceptiveFieldSize = {
-    val sum = columns.map(_.receptiveFieldSize).sum
+  def averageReceptiveFieldRadius = {
+    //TODO: filter or not?
+    val filtered = columns//.filter(_.active)
 
-    sum.toDouble / columns.length
+    val sum = filtered.map(_.receptiveFieldRadius).sum
+
+    sum.toDouble / filtered.length
   }
 
   def seedDistalSynapses(): Unit = {
@@ -62,7 +75,8 @@ class Region(implicit val config: CLA.Config) { region =>
 
   def getRandomCell(refColumn: Column): NeuralNode = {
     //TODO: variance based on inhibitionRadius?
-    val columnSel = refColumn.loc + randomNormal(0.2) * columns.length
+    //val columnSel = refColumn.loc + randomNormal(0.5) * columns.length
+    val columnSel = math.random * columns.length
     //TODO: wrap on edges via ring, or cut off via a line?
 
     //TODO: ignore same column... or no?
@@ -78,6 +92,7 @@ class Region(implicit val config: CLA.Config) { region =>
     val s = connectionThreshold * 0.1 //10% variance
     val n = (s * 2 * math.random) - s
 
-    connectionThreshold + n
+    //connectionThreshold + n
+    0.8
   }
 }

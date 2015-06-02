@@ -6,21 +6,20 @@ Future ideas:
  */
 object CLA {
   case class Config(
-    segmentThreshold: Int = 13,
-    minOverlap: Int = 13,
+    segmentThreshold: Int = 12,
+    minOverlap: Int = 4,
     seededDistalConnections: Int = 20,
     connectionThreshold: Double = 0.2,
-    maxDistalDendrites: Int = 3,
+    maxDistalDendrites: Int = 32,
     columnHeight: Int = 32,
     regionWidth: Int = 2048,
+    desiredLocalActivity: Int = 40,
     inputWidth: Int = 128,
     inputConnectionsPerColumn: Int = 64,
-    dutyAlpha: Double = 0.9,
     boostIncr: Double = 0.05,
-    desiredLocalActivity: Int = 40,
     dutyAverageFrames: Int = 20,
-    permanenceInc: Double = 0.01,
-    permanenceDec: Double = 0.005,
+    permanenceInc: Double = 0.1,
+    permanenceDec: Double = 0.01,
     minDistalPermanence: Double = 0.005
   ) {
     require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")

@@ -1,8 +1,5 @@
 package com.colingodsey.logos.cla
 
-/**
- * Created by crgodsey on 6/2/15.
- */
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
 final class Cell(val column: Column) extends NeuralNode {
@@ -50,9 +47,9 @@ final class Cell(val column: Column) extends NeuralNode {
   def reinforceDistal(): Unit = {
     val pruned = distalDendrite.pruneSynapses()
 
-    if(pruned > 0) seedDistal(pruned)
-
     distalDendrite.reinforce()
+
+    if(pruned > 0) seedDistal(pruned)
   }
 
   def activateIfPredicted(): Unit = {
