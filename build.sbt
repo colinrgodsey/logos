@@ -23,10 +23,17 @@ lazy val utils = crossProject.in(file("utils"))
 lazy val utilsJVM = utils.jvm
 lazy val utilsJs = utils.js
 
+lazy val cla = crossProject.in(file("cla"))
+    .settings(name := "logos-cla")
+    .settings(Logos.commonSettings: _*)
+    .dependsOn(collections)
+lazy val claJVM = cla.jvm
+lazy val claJs = cla.js
+
 lazy val root = crossProject.in(file("."))
     .settings(name := "logos")
     .settings(Logos.commonSettings: _*)
-    .dependsOn(collections, qlearning, pathing, utils)
+    .dependsOn(collections, qlearning, pathing, utils, cla)
 lazy val rootJVM = root.jvm
 lazy val rootJs = root.js
 
