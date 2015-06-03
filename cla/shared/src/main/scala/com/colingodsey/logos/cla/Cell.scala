@@ -1,5 +1,7 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.collections.RollingAverage
+
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
 final class Cell(val column: Column) extends NeuralNode {
@@ -23,6 +25,9 @@ final class Cell(val column: Column) extends NeuralNode {
     predictive = distalDendrite.active
   }
 
+  def leastPredictiveDutyCycle = distalDendrite.leastActiveDuty.activeDutyCycle
+  def mostPredictiveDutyCycle = distalDendrite.mostActiveDuty.activeDutyCycle
+
   def deactivate(): Unit = {
     _active = false
     predictive = false
@@ -35,9 +40,8 @@ final class Cell(val column: Column) extends NeuralNode {
 
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
-  def predication =
-    distalDendrite.mostActive.map(
-      s => (s.activation, s.potentialActivation, math.random)) getOrElse (0, 0, 0.0)
+  def activationOrdinal =
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0, 0.0)
 
   def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
@@ -45,10 +49,17 @@ final class Cell(val column: Column) extends NeuralNode {
     //TODO: only find semi active columns?
     for {
       i <- 0 until n
-      segment0 = distalDendrite.mostActive getOrElse randomSegment
+      segment0 = randomSegment
       segment = if(segment0.synapses.length >= seededDistalConnections) randomSegment else segment0
       otherCell = region.getRandomCell(column, useLearnCell = true)
     } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+  }
+
+  def boostPredictive(minPredictiveDuty: Double): Unit = {
+    distalDendrite.segments foreach { segment =>
+      if(segment.activeDutyCycle.toDouble < minPredictiveDuty)
+        segment.addBoost()
+    }
   }
 
   def reinforceDistal(): Unit = {
@@ -56,23 +67,29 @@ final class Cell(val column: Column) extends NeuralNode {
 
     var pruned = distalDendrite.reinforceAndPrune()
 
-    if(math.random < 0.2) {
+    /*if(math.random < 0.2) {
       val segment = randomSegment
 
       segment.reinforce()
       pruned += segment.pruneSynapses()
-    }
+    }*/
 
-    distalDendrite.mostActive.foreach { segment =>
-      if(segment.synapses.length < seededDistalConnections) {
-        val otherCell = region.getRandomCell(column, useLearnCell = true)
-        segment.synapses :+= otherCell -> region.getRandomDistalPermanence
-        pruned -= 1
+    if(distalDendrite.synapseFillPercent < 1 || pruned > 0) {
+      if(pruned > 0) seedDistal(pruned)
+
+      distalDendrite.mostActive match {
+        case Some(segment) if segment.synapses.length < seededDistalConnections =>
+          val otherCell = region.getRandomCell(column, useLearnCell = true)
+          segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+          //seedDistal(math.max(1, pruned - 1))
+        case _ if distalDendrite.synapseFillPercent < 0.5 =>
+          seedDistal(5)
+        case _ =>
+          val otherCell = region.getRandomCell(column, useLearnCell = true)
+          distalDendrite.leastActiveDuty.synapses :+= otherCell -> region.getRandomDistalPermanence
+          //seedDistal(math.max(1, pruned))
       }
-
     }
-
-    if(pruned > 0) seedDistal(pruned)
   }
 
   def activateIfPredicted(): Unit = {

@@ -2,29 +2,43 @@ package com.colingodsey.logos.cla
 
 //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
 final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Config) extends NeuralNode {
+  import config._
+  
   var active = false
   var segments = IndexedSeq[DendriteSegment]()
+  var synapseFillPercent = 100000
   var mostActive: Option[DendriteSegment] = None
+
+  def leastActiveDuty = segments.minBy(x => (x.activeDutyCycle.toDouble, math.random))
+  def mostActiveDuty = segments.maxBy(x => (x.activeDutyCycle.toDouble, math.random))
 
   def update(): Unit = {
     segments.foreach(_.update())
+    synapseFillPercent = segments.iterator.map(_.synapses.length).sum / (segments.length * seededDistalConnections)
 
     //TODO: min threshold?
     mostActive = //segments.toStream.sortBy(-_.activation).headOption
       if(segments.isEmpty) None
-      else Some(segments.maxBy(s => (s.activation, s.potentialActivation, math.random)))
+      else Some(segments.maxBy(_.activationOrdinal))
 
     active = segments.exists(_.active)
   }
 
+
+  //TODO: min activation?
   def reinforceAndPrune(): Int = {
     //segments.foreach(_.reinforce())
     val max = mostActive
 
-    /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
+    leastActiveDuty.reinforce()
+    val leastPruned = leastActiveDuty.pruneSynapses()
+
+    val mostPruned = /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
       segment.reinforce()
       segment.pruneSynapses()
     } getOrElse 0
+
+    leastPruned + mostPruned
   }
 
   /*def maybeAddSynapse(): Unit = {

@@ -10,8 +10,8 @@ object CLATest extends TestSuite {
   implicit val config = CLA.DefaultConfig.copy(inputWidth = 80,
     desiredLocalActivity = 40,
     segmentThreshold = 8, //seededDistalConnections = 20, maxDistalDendrites = 32,
-    columnHeight = 20,
-    regionWidth = 256, minOverlap = 5, inputConnectionsPerColumn = 30)
+    columnHeight = 32,
+    regionWidth = 512, minOverlap = 5, inputConnectionsPerColumn = 30)
 
   /*
   implicit val config = CLA.DefaultConfig.copy(
@@ -29,7 +29,7 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 1000) {
+      for(_ <- 0 until 500) {
         //println(randomNormal(0.5))
         region.update(encoder.encode(0))
         println(region.anomalyScore)
@@ -49,9 +49,9 @@ object CLATest extends TestSuite {
         println(region.anomalyScore)
         region.update(encoder.encode(1))
         println(region.anomalyScore)
-
+/*
         val r = (math.random * 4).toInt + 1
-        //region.update(encoder.encode(r / 4.0))
+        region.update(encoder.encode(r / 4.0))*/
       }
 
       //region.update(encoder.encode(math.random))

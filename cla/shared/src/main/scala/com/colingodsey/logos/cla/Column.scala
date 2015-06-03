@@ -15,7 +15,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var predicationAverage = RollingAverage(dutyAverageFrames)
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
-  var learningCell = cells(0)
+  var selectedLearningCell: Option[Cell] = None
   var activeFromPrediction = false
   var ordinal = math.random
 
@@ -41,6 +41,10 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
     out.toArray
   }
+
+  def randomCell = cells((cells.length * math.random).toInt)
+
+  def learningCell = selectedLearningCell.getOrElse(randomCell)
 
   def input(idx: Int) = region.input(inputMap(idx))
 
@@ -79,7 +83,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius).filter(_ != column)
 
   def updateDutyCycle(): Unit = {
-    val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
+    //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
+    val maxDutyCycle = region.maxDutyCycle
     val minDutyCycle = 0.01 * maxDutyCycle
 
     predicationAverage += predication
@@ -112,18 +117,29 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     if(overlap >= min) activate()
   }
 
-  def predication = learningCell.predication._1
+  def predication = learningCell.activationOrdinal._1
 
   def updatePermanence(): Unit = if(active) {
     proximalDendrite.reinforce()
   }
 
+  def leastPredictiveDutyCell =
+    cells.minBy(x => (x.leastPredictiveDutyCycle.toDouble, math.random))
+  def mostPredictiveDutyCell =
+    cells.maxBy(x => (x.mostPredictiveDutyCycle.toDouble, math.random))
 
   //active columns will 'tick' predictive state of cells
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    learningCell = cells.maxBy(_.predication)
+    val maxPredictiveDuty = mostPredictiveDutyCell.mostPredictiveDutyCycle.toDouble
+    val minPredictiveDuty = maxPredictiveDuty * 0.01
+
+    //leastPredictiveDutyCell.reinforceDistal()
+
+    //cells.foreach(_.boostPredictive(minPredictiveDuty))
+
+    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
 
     val hasPredictive = cells.exists(_.predictive)
 
@@ -171,7 +187,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     segments = Array.fill(nSegments)(new DendriteSegment(column.loc))
     _ = cell.distalDendrite.segments = segments
     segment <- segments
-    otherCells = Seq.fill(seededDistalConnections)(region.getRandomCell(column, useLearnCell = false))
+    otherCells = Seq.fill(segmentThreshold + 3)(region.getRandomCell(column, useLearnCell = false))
     otherCell <- otherCells
   } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
 

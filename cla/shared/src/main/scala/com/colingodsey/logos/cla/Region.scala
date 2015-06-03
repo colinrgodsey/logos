@@ -11,6 +11,7 @@ class Region(implicit val config: CLA.Config) { region =>
   val input = Array.fill(inputWidth)(false)
 
   var inhibitionRadiusAverage = RollingAverage(dutyAverageFrames)
+  var maxDutyCycle = 1.0
 
   inhibitionRadiusAverage += regionWidth / 2.0
 
@@ -65,6 +66,7 @@ class Region(implicit val config: CLA.Config) { region =>
     //update rolling averages
     columns.foreach(_.updateDutyCycle())
 
+    maxDutyCycle = columns.iterator.map(_.activeDutyCycle.toDouble).max
     inhibitionRadiusAverage += averageReceptiveFieldRadius / inputWidth * regionWidth
   }
 
@@ -94,7 +96,7 @@ class Region(implicit val config: CLA.Config) { region =>
 
       if (column == refColumn) getRandomCell(refColumn, useLearnCell)
       else if(column.activeFromPrediction && useLearnCell) column.learningCell
-      else column.cells((column.cells.length * math.random).toInt)
+      else column.randomCell
     }
   }
 

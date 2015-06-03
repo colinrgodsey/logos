@@ -1,5 +1,8 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.collections.RollingAverage
+
+//TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
     val loc: CLA.Location,
     var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
@@ -10,6 +13,9 @@ final class DendriteSegment(
   var activation = 0
   var potentialActivation = 0
   var receptive = 0
+  var boost = 0.0
+
+  var activeDutyCycle = RollingAverage(dutyAverageFrames)
   //var sequenceSegment = false
 
   def threshold = segmentThreshold
@@ -34,6 +40,9 @@ final class DendriteSegment(
     }
   }
 
+  //TODO: min activation for boost?
+  def activationOrdinal = (activation * (boost + 1.0), potentialActivation, math.random)
+
   def pruneSynapses(): Int = {
     var pruned = 0
 
@@ -45,6 +54,10 @@ final class DendriteSegment(
     }
 
     pruned
+  }
+
+  def addBoost(): Unit = {
+    boost += boostIncr
   }
 
   def update(): Unit = {
@@ -75,5 +88,9 @@ final class DendriteSegment(
     potentialActivation = potAct
 
     active = activation > threshold
+
+    activeDutyCycle += (if(active) 1.0 else 0.0)
+
+    if(active) boost = 0.0
   }
 }
