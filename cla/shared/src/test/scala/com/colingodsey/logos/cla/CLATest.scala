@@ -9,9 +9,9 @@ object CLATest extends TestSuite {
 
   implicit val config = CLA.DefaultConfig.copy(inputWidth = 80,
     desiredLocalActivity = 40,
-    segmentThreshold = 8, seededDistalConnections = 25, maxDistalDendrites = 20,
+    segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 128,
     columnHeight = 20,
-    regionWidth = 128, minOverlap = 5, inputConnectionsPerColumn = 40)
+    regionWidth = 256, minOverlap = 5, inputConnectionsPerColumn = 30)
 /*
   implicit val config = CLA.DefaultConfig.copy(
     columnHeight = 20,
@@ -28,7 +28,6 @@ object CLATest extends TestSuite {
 
       for(_ <- 0 until 1000) {
         //println(randomNormal(0.5))
-        //region.update(encoder.encode(math.random))
         region.update(encoder.encode(0))
         println(region.anomalyScore)
         region.update(encoder.encode(0.25))
@@ -37,6 +36,19 @@ object CLATest extends TestSuite {
         println(region.anomalyScore)
         region.update(encoder.encode(1))
         println(region.anomalyScore)
+        //println(region.numActive)
+
+        region.update(encoder.encode(0))
+        println(region.anomalyScore)
+        region.update(encoder.encode(0.75))
+        println(region.anomalyScore)
+        region.update(encoder.encode(0.5))
+        println(region.anomalyScore)
+        region.update(encoder.encode(1))
+        println(region.anomalyScore)
+
+        val r = (math.random * 4).toInt + 1
+        //region.update(encoder.encode(r / 4.0))
       }
 
       //region.update(encoder.encode(math.random))

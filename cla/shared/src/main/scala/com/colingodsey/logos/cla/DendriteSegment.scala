@@ -8,6 +8,7 @@ final class DendriteSegment(
 
   var active = false
   var activation = 0
+  var potentialActivation = 0
   var receptive = 0
   //var sequenceSegment = false
 
@@ -49,6 +50,7 @@ final class DendriteSegment(
   def update(): Unit = {
     var act = 0
     var rec = 0
+    var potAct = 0
     var i = 0
 
     val l = synapses.length
@@ -58,17 +60,19 @@ final class DendriteSegment(
       val node = pair._1
       val p = pair._2
 
-      val r = p > connectionThreshold
+      val con = p > connectionThreshold
 
-      if(r) rec += 1
+      if(con) rec += 1
+      else if(node.active) potAct += 1
 
-      if(r && node.active) act += 1
+      if(con && node.active) act += 1
 
       i += 1
     }
 
     activation = act
     receptive = rec
+    potentialActivation = potAct
 
     active = activation > threshold
   }

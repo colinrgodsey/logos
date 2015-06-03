@@ -28,7 +28,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
     while(added < inputConnectionsPerColumn) {
       val i = (math.random * inputWidth).toInt
-      //val i = (randomNormal(0.25) * inputWidth / 2 + inputLoc).toInt
+      //val i = (randomNormal(0.1) * inputWidth + inputLoc).toInt
 
       if(i >= 0 && i < inputWidth && !outSet(i)) {
         outSet += i
@@ -59,7 +59,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
         def loc: CLA.Location = inputMap(idx)
       }
 
-      (node, region.getRandomPermanence)
+      (node, region.getRandomProximalPermanence)
     })
 
     new DendriteSegment(loc, nodes.toArray.toIndexedSeq)
@@ -111,6 +111,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     proximalDendrite.reinforce()
   }
 
+  //TODO: add random?
   def learningCell = cells.maxBy(_.predication)
 
   //active columns will 'tick' predictive state of cells
@@ -123,8 +124,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     //TODO: only new synapses to learning cells?
     if(hasPredictive) {
       //TODO: most predictive only, or all predictive?
-      //cells.filter(_.predictive).foreach(_.reinforceDistal())
-      learningCell.reinforceDistal()
+      cells.filter(_.predictive).foreach(_.reinforceDistal())
+      //learningCell.reinforceDistal()
     } else {
       //only reinforce the 'learning cell' here (max predication)
       learningCell.reinforceDistal()
@@ -163,9 +164,9 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     segments = Array.fill(nSegments)(new DendriteSegment(column.loc))
     _ = cell.distalDendrite.segments = segments
     segment <- segments
-    otherCells = Seq.fill(seededDistalConnections)(region.getRandomCell(column))
+    otherCells = Seq.fill(seededDistalConnections)(region.getRandomCell(column, useLearnCell = false))
     otherCell <- otherCells
-  } segment.synapses :+= otherCell -> region.getRandomPermanence
+  } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
 
 
 }

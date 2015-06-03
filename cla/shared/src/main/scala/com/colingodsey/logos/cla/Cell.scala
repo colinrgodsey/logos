@@ -4,6 +4,8 @@ package com.colingodsey.logos.cla
 //TODO: actual distal segments, not just the 1 fixed one
 final class Cell(val column: Column) extends NeuralNode {
   import column.region
+  import region.config
+  import config._
 
   var predictive = false
   private var _active = false
@@ -31,23 +33,30 @@ final class Cell(val column: Column) extends NeuralNode {
     predictive = false
   }
 
-  def predication = distalDendrite.mostActive.map(_.activation) getOrElse 0
+  //TODO: count receptive, or no?
+  //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
+  def predication: (Int, Int) =
+    distalDendrite.mostActive.map(
+      s => (s.activation, s.potentialActivation)) getOrElse (0, 0)
 
   def seedDistal(n: Int): Unit = {
     val segments = distalDendrite.segments
 
+    def randomSegment = segments((math.random * segments.length).toInt)
+
     //TODO: only find semi active columns?
     for {
       i <- 0 until n
-      segment = segments((math.random * segments.length).toInt)
-      otherCell = region.getRandomCell(column)
-    } segment.synapses :+= otherCell -> region.getRandomPermanence
+      //segment = segments((math.random * segments.length).toInt)
+      segment = distalDendrite.mostActive getOrElse randomSegment
+      otherCell = region.getRandomCell(column, useLearnCell = true)
+    } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
   }
 
   def reinforceDistal(): Unit = {
-    val pruned = distalDendrite.pruneSynapses()
-
     distalDendrite.reinforce()
+
+    val pruned = distalDendrite.pruneSynapses()
 
     if(pruned > 0) seedDistal(pruned)
   }

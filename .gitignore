@@ -23,3 +23,5 @@ project/plugins/project/
 
 *.DS_Store
 *.iml
+
+.smbdelete
