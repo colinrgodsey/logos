@@ -16,11 +16,14 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
     active = segments.exists(_.active)
   }
 
-  def reinforce(): Unit = {
+  def reinforceAndPrune(): Int = {
     //segments.foreach(_.reinforce())
     val max = mostActive
 
-    /*if(max.activation > 4/*minActivation*/) */max.foreach(_.reinforce())
+    /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
+      segment.reinforce()
+      segment.pruneSynapses()
+    } getOrElse 0
   }
 
   /*def maybeAddSynapse(): Unit = {
@@ -29,5 +32,5 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
     }
   }*/
 
-  def pruneSynapses(): Int = segments.iterator.map(_.pruneSynapses()).sum
+  //def pruneSynapses(): Int = segments.iterator.map(_.pruneSynapses()).sum
 }

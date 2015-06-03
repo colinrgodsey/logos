@@ -54,9 +54,9 @@ final class Cell(val column: Column) extends NeuralNode {
   }
 
   def reinforceDistal(): Unit = {
-    distalDendrite.reinforce()
+    //distalDendrite.reinforce()
 
-    val pruned = distalDendrite.pruneSynapses()
+    val pruned = distalDendrite.reinforceAndPrune()
 
     if(pruned > 0) seedDistal(pruned)
   }

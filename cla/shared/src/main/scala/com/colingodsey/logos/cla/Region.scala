@@ -101,14 +101,15 @@ class Region(implicit val config: CLA.Config) { region =>
     val s = connectionThreshold * 0.2 //10% variance
     val n = (s * 2 * math.random) - s
 
-    connectionThreshold + n
+    connectionThreshold / 2.0
+    //connectionThreshold + n
   }
 
   def getRandomDistalPermanence = {
     val s = connectionThreshold * 0.1 //10% variance
     val n = (s * 2 * math.random) - s
 
-    //connectionThreshold / 2.0
-    connectionThreshold + n
+    connectionThreshold / 2.0
+    //connectionThreshold + n
   }
 }

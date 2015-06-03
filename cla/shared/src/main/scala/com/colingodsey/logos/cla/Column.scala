@@ -12,6 +12,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var active = false
   var proximalDendrite = createProximalDendrite
   var boost = 0.0
+  var predicationAverage = RollingAverage(dutyAverageFrames)
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
 
@@ -66,7 +67,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   }
 
   def overlap = {
-    val activation = proximalDendrite.activation
+    val activation = proximalDendrite.activation + predicationAverage.toDouble / 4.0
 
     (if(activation < minOverlap) 0 else activation) * (1.0 + boost)
   }
@@ -80,6 +81,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
     val minDutyCycle = 0.01 * maxDutyCycle
 
+    predicationAverage += predication
     activeDutyCycle += (if(active) 1 else 0)
     overlapDutyCycle += (if(overlap > minOverlap) 1 else 0)
 
@@ -87,7 +89,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     else boost = 0
 
     //enforce all synapses a small amount
-    if(overlapDutyCycle.toDouble < minDutyCycle) {
+    if(overlapDutyCycle.toDouble <= minDutyCycle) {
       val synapses = proximalDendrite.synapses map {
         case (node, p) => node -> (p + connectionThreshold * 0.1)
       }
@@ -106,6 +108,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
     if(overlap >= min) activate()
   }
+
+  def predication = learningCell.predication._1
 
   def updatePermanence(): Unit = if(active) {
     proximalDendrite.reinforce()
