@@ -3,7 +3,7 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.collections.ExtraMath.randomNormal
 import com.colingodsey.logos.collections.RollingAverage
 
-trait DutyCycle extends NeuralNode{
+trait DutyCycle extends NeuralNode {
   private var _boost = 0.0
 
   def parent: DutyCycle.Booster
@@ -13,8 +13,8 @@ trait DutyCycle extends NeuralNode{
   def activation: Int
   def active: Boolean
   def boostPermanence(): Unit
-  var activeDutyCycle: RollingAverage
-  var overlapDutyCycle: RollingAverage
+  val activeDutyCycle: RollingAverage
+  val overlapDutyCycle: RollingAverage
 
   def boost = _boost
   protected def boost_=(x: Double) = _boost = x

@@ -71,7 +71,7 @@ final class Cell(val column: Column) extends NeuralNode {
     if(distalDendrite.synapseFillPercent < 1 || pruned > 0) {
       if(pruned > 0) seedDistal(pruned)
 
-      lazy val otherCell = region.getRandomCell(column, useLearnCell = true)
+      def otherCell = region.getRandomCell(column, useLearnCell = true)
 
       distalDendrite.mostActive match {
         case Some(segment) if segment.connections.length < seededDistalConnections =>

@@ -6,6 +6,7 @@ import com.colingodsey.logos.collections.RollingAverage
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
     val loc: CLA.Location,
+    val parent: DutyCycle.Booster,
     synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
     implicit val config: CLA.Config) extends SDR {
   import config._
@@ -15,8 +16,8 @@ final class DendriteSegment(
   var potentialActivation = 0
   var receptive = 0
 
-  var activeDutyCycle = RollingAverage(dutyAverageFrames)
-  var overlapDutyCycle = RollingAverage(dutyAverageFrames)
+  val activeDutyCycle = RollingAverage(dutyAverageFrames)
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames)
   //var sequenceSegment = false
 
   var connections = synapses
@@ -30,7 +31,7 @@ final class DendriteSegment(
   }
 
   //TODO: min activation for boost?
-  def activationOrdinal = (activation * (boost + 1.0), potentialActivation, math.random)
+  def activationOrdinal = (overlap, activation, /*potentialActivation,*/ math.random)
 
   def update(): Unit = {
     var act = 0
@@ -59,9 +60,9 @@ final class DendriteSegment(
     receptive = rec
     potentialActivation = potAct
 
-    active = activation > activationThreshold
+    active = activation >= config.segmentThreshold
 
-    //updateDutyCycle()
+    updateDutyCycle()
   }
 
   def connectionThreshold: Double = config.connectionThreshold
@@ -70,8 +71,4 @@ final class DendriteSegment(
   def permanenceDec: Double = config.permanenceDec
   def boostIncr: Double = config.boostIncr
   def activationThreshold: Int = config.segmentThreshold
-
-  def parent: Booster = new Booster {
-    def maxDutyCycle: Double =  0.0
-  }
 }

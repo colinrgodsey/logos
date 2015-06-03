@@ -6,7 +6,25 @@ package com.colingodsey.logos.collections
  * @param count - current count of samples
  * @param max - max number of samples
  */
-case class RollingAverage(val max: Int,
+final class RollingAverage(val max: Int,
+    var average: Double = 0, var count: Int = 0) {
+
+  def +=(n: Double) = {
+    val newCount = math.min(max, count + 1)
+    val newAverage = (average * (newCount - 1) + n) / newCount
+
+    average = newAverage
+    count = newCount
+  }
+
+  def toDouble = average
+}
+
+object RollingAverage {
+  def apply(max: Int): RollingAverage = new RollingAverage(max)
+}
+/*
+final case class RollingAverage(val max: Int,
     average: Double = 0, count: Int = 0) {
 
   def +(n: Double) = {
@@ -18,3 +36,5 @@ case class RollingAverage(val max: Int,
 
   def toDouble = average
 }
+
+ */

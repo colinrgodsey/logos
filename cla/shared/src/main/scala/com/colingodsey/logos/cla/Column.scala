@@ -8,12 +8,12 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   import config._
 
   val cells = Array.fill(columnHeight)(new Cell(column))
+  val predicationAverage = RollingAverage(dutyAverageFrames)
+  val activeDutyCycle = RollingAverage(dutyAverageFrames)
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames)
 
   var active = false
   var proximalDendrite = createProximalDendrite
-  var predicationAverage = RollingAverage(dutyAverageFrames)
-  var activeDutyCycle = RollingAverage(dutyAverageFrames)
-  var overlapDutyCycle = RollingAverage(dutyAverageFrames)
   var selectedLearningCell: Option[Cell] = None
   var wasPredicted = false
   var ordinal = math.random
@@ -71,7 +71,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
       (node, region.getRandomProximalPermanence)
     })
 
-    new DendriteSegment(loc, nodes.toArray.toIndexedSeq)
+    new DendriteSegment(loc, region, nodes.toArray.toIndexedSeq)
   }
 
   //def receptiveFieldSize = proximalDendrite.receptive
@@ -173,7 +173,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   def seedDistalSynapses(): Unit = for {
     cell <- cells
     nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
-    segments = Array.fill(nSegments)(new DendriteSegment(column.loc))
+    segments = Array.fill(nSegments)(new DendriteSegment(column.loc, cell.distalDendrite))
     _ = cell.distalDendrite.segments = segments
     segment <- segments
     otherCells = Seq.fill(segmentThreshold + 3)(region.getRandomCell(column, useLearnCell = false))

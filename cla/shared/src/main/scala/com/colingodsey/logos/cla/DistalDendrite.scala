@@ -1,14 +1,16 @@
 package com.colingodsey.logos.cla
 
 //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
-final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Config) extends NeuralNode {
+final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Config) extends NeuralNode with DutyCycle.Booster {
   import config._
   
   var active = false
   var segments = IndexedSeq[DendriteSegment]()
   var synapseFillPercent = 100000
   var mostActive: Option[DendriteSegment] = None
+  var maxDutyCycle = 1.0
 
+  //def averageActiveDuty = segments.iterator.map(_.activeDutyCycle.toDouble).sum / segments.length
   def leastActiveDuty = segments.minBy(x => (x.activeDutyCycle.toDouble, math.random))
   def mostActiveDuty = segments.maxBy(x => (x.activeDutyCycle.toDouble, math.random))
 
@@ -22,6 +24,8 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
       else Some(segments.maxBy(_.activationOrdinal))
 
     active = segments.exists(_.active)
+
+    maxDutyCycle = mostActiveDuty.activeDutyCycle.toDouble
   }
 
 
