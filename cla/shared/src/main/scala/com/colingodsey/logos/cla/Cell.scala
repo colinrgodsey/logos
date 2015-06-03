@@ -50,22 +50,16 @@ final class Cell(val column: Column) extends NeuralNode {
     for {
       i <- 0 until n
       segment0 = randomSegment
-      segment = if(segment0.synapses.length >= seededDistalConnections) randomSegment else segment0
+      segment = if(segment0.connections.length >= seededDistalConnections) randomSegment else segment0
       otherCell = region.getRandomCell(column, useLearnCell = true)
-    } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+    } segment.connections :+= otherCell -> region.getRandomDistalPermanence
   }
 
-  def boostPredictive(minPredictiveDuty: Double): Unit = {
-    distalDendrite.segments foreach { segment =>
-      if(segment.activeDutyCycle.toDouble < minPredictiveDuty)
-        segment.addBoost()
-    }
-  }
 
   def reinforceDistal(): Unit = {
     //distalDendrite.reinforce()
 
-    var pruned = distalDendrite.reinforceAndPrune()
+    val pruned = distalDendrite.reinforceAndPrune()
 
     /*if(math.random < 0.2) {
       val segment = randomSegment
@@ -77,16 +71,16 @@ final class Cell(val column: Column) extends NeuralNode {
     if(distalDendrite.synapseFillPercent < 1 || pruned > 0) {
       if(pruned > 0) seedDistal(pruned)
 
+      lazy val otherCell = region.getRandomCell(column, useLearnCell = true)
+
       distalDendrite.mostActive match {
-        case Some(segment) if segment.synapses.length < seededDistalConnections =>
-          val otherCell = region.getRandomCell(column, useLearnCell = true)
-          segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+        case Some(segment) if segment.connections.length < seededDistalConnections =>
+          segment.connections :+= otherCell -> region.getRandomDistalPermanence
           //seedDistal(math.max(1, pruned - 1))
         case _ if distalDendrite.synapseFillPercent < 0.5 =>
           seedDistal(5)
         case _ =>
-          val otherCell = region.getRandomCell(column, useLearnCell = true)
-          distalDendrite.leastActiveDuty.synapses :+= otherCell -> region.getRandomDistalPermanence
+          distalDendrite.leastActiveDuty.connections :+= otherCell -> region.getRandomDistalPermanence
           //seedDistal(math.max(1, pruned))
       }
     }

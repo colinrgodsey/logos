@@ -3,7 +3,7 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.collections.RollingAverage
 import com.colingodsey.logos.collections.ExtraMath.randomNormal
 
-final class Column(val region: Region, val loc: CLA.Location) { column =>
+final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle { column =>
   import region.config
   import config._
 
@@ -11,12 +11,11 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
 
   var active = false
   var proximalDendrite = createProximalDendrite
-  var boost = 0.0
   var predicationAverage = RollingAverage(dutyAverageFrames)
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
   var selectedLearningCell: Option[Cell] = None
-  var activeFromPrediction = false
+  var wasPredicted = false
   var ordinal = math.random
 
   val cellIndexes = 0 until columnHeight
@@ -42,15 +41,19 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     out.toArray
   }
 
-  def randomCell = cells((cells.length * math.random).toInt)
+  def parent = region
+  def activationThreshold = minOverlap
+  def boostIncr = config.boostIncr
+  def activation = proximalDendrite.activation
 
+  def randomCell = cells((cells.length * math.random).toInt)
   def learningCell = selectedLearningCell.getOrElse(randomCell)
 
   def input(idx: Int) = region.input(inputMap(idx))
 
   override def toString = {
     val active = cells.map {
-      case cell if cell.active && activeFromPrediction => "P"
+      case cell if cell.active && wasPredicted => "P"
       case cell if cell.active => "A"
       case _ => "O"
     }.mkString
@@ -71,39 +74,25 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     new DendriteSegment(loc, nodes.toArray.toIndexedSeq)
   }
 
-  def overlap: Double = {
-    val activation = proximalDendrite.activation// + predicationAverage.toDouble / 4.0
-
-    (if(activation < minOverlap) 0 else activation) * (1.0 + boost)
-  }
-
   //def receptiveFieldSize = proximalDendrite.receptive
   def receptiveFieldRadius = proximalDendrite.receptiveRadius
 
   def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius).filter(_ != column)
 
-  def updateDutyCycle(): Unit = {
-    //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
-    val maxDutyCycle = region.maxDutyCycle
-    val minDutyCycle = 0.01 * maxDutyCycle
-
+  override def updateDutyCycle(): Unit = {
     predicationAverage += predication
-    activeDutyCycle += (if(active) 1 else 0)
-    overlapDutyCycle += (if(overlap > minOverlap) 1 else 0)
+
+    super[DutyCycle].updateDutyCycle()
 
     ordinal = math.random
+  }
 
-    if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
-    else boost = 0
-
-    //enforce all synapses a small amount
-    if(overlapDutyCycle.toDouble <= minDutyCycle) {
-      val synapses = proximalDendrite.synapses map {
-        case (node, p) => node -> (p + connectionThreshold * 0.1)
-      }
-
-      proximalDendrite.synapses = synapses
+  def boostPermanence(): Unit = {
+    val synapses = proximalDendrite.connections map {
+      case (node, p) => node -> (p + connectionThreshold * 0.1)
     }
+
+    proximalDendrite.connections = synapses
   }
 
   //only for strict inhibition radius
@@ -132,8 +121,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    val maxPredictiveDuty = mostPredictiveDutyCell.mostPredictiveDutyCycle.toDouble
-    val minPredictiveDuty = maxPredictiveDuty * 0.01
+    //val maxPredictiveDuty = mostPredictiveDutyCell.mostPredictiveDutyCycle.toDouble
+    //val minPredictiveDuty = maxPredictiveDuty * 0.01
 
     //leastPredictiveDutyCell.reinforceDistal()
 
@@ -159,14 +148,14 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   def temporalPostPooler(): Unit = if(active) {
     cells.foreach(_.activateIfPredicted())
 
-    activeFromPrediction = cells.exists(_.active)
+    wasPredicted = cells.exists(_.active)
 
     /*
     if none active from prediction, activate all
     for our 'context-less' activation.
     Otherwise deactivate all.
     */
-    if(!activeFromPrediction) {
+    if(!wasPredicted) {
       cells.foreach(_.activate())
     }
   } else {
@@ -189,7 +178,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     segment <- segments
     otherCells = Seq.fill(segmentThreshold + 3)(region.getRandomCell(column, useLearnCell = false))
     otherCell <- otherCells
-  } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+  } segment.connections :+= otherCell -> region.getRandomDistalPermanence
 
 
 }

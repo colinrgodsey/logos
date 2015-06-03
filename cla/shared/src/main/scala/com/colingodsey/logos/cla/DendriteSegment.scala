@@ -1,64 +1,36 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.cla.DutyCycle.Booster
 import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
     val loc: CLA.Location,
-    var synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
-    implicit val config: CLA.Config) extends NeuralNode {
+    synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
+    implicit val config: CLA.Config) extends SDR {
   import config._
 
   var active = false
   var activation = 0
   var potentialActivation = 0
   var receptive = 0
-  var boost = 0.0
 
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
+  var overlapDutyCycle = RollingAverage(dutyAverageFrames)
   //var sequenceSegment = false
 
-  def threshold = segmentThreshold
+  var connections = synapses
 
   def receptiveRadius = {
-    synapses.iterator.map {
+    connections.iterator.map {
       case (node, p) if p > connectionThreshold =>
         math.abs(node.loc - loc)
       case _ => 0
     }.max
   }
 
-  //TODO: min activation?
-  def reinforce(): Unit = /*if(activation > minActivation)*/ {
-    synapses = synapses map {
-      case (node, p) =>
-        val newP =
-          if (node.active) math.min(1.0, p + permanenceInc)
-          else math.max(0.0, p - permanenceDec)
-
-        node -> newP
-    }
-  }
-
   //TODO: min activation for boost?
   def activationOrdinal = (activation * (boost + 1.0), potentialActivation, math.random)
-
-  def pruneSynapses(): Int = {
-    var pruned = 0
-
-    synapses = synapses filter {
-      case (_, p) if p < minDistalPermanence =>
-        pruned += 1
-        false
-      case _ => true
-    }
-
-    pruned
-  }
-
-  def addBoost(): Unit = {
-    boost += boostIncr
-  }
 
   def update(): Unit = {
     var act = 0
@@ -66,10 +38,10 @@ final class DendriteSegment(
     var potAct = 0
     var i = 0
 
-    val l = synapses.length
+    val l = connections.length
 
     while(i < l) {
-      val pair = synapses(i)
+      val pair = connections(i)
       val node = pair._1
       val p = pair._2
 
@@ -87,10 +59,19 @@ final class DendriteSegment(
     receptive = rec
     potentialActivation = potAct
 
-    active = activation > threshold
+    active = activation > activationThreshold
 
-    activeDutyCycle += (if(active) 1.0 else 0.0)
+    //updateDutyCycle()
+  }
 
-    if(active) boost = 0.0
+  def connectionThreshold: Double = config.connectionThreshold
+  def minDistalPermanence: Double = config.minDistalPermanence
+  def permanenceInc: Double = config.permanenceInc
+  def permanenceDec: Double = config.permanenceDec
+  def boostIncr: Double = config.boostIncr
+  def activationThreshold: Int = config.segmentThreshold
+
+  def parent: Booster = new Booster {
+    def maxDutyCycle: Double =  0.0
   }
 }

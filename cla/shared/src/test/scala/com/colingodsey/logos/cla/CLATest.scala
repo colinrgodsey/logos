@@ -11,7 +11,7 @@ object CLATest extends TestSuite {
     desiredLocalActivity = 40,
     segmentThreshold = 8, //seededDistalConnections = 20, maxDistalDendrites = 32,
     columnHeight = 32,
-    regionWidth = 512, minOverlap = 5, inputConnectionsPerColumn = 30)
+    regionWidth = 256, minOverlap = 5, inputConnectionsPerColumn = 30)
 
   /*
   implicit val config = CLA.DefaultConfig.copy(
