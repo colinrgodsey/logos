@@ -17,6 +17,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
   var learningCell = cells(0)
   var activeFromPrediction = false
+  var ordinal = math.random
 
   val cellIndexes = 0 until columnHeight
 
@@ -67,7 +68,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   }
 
   def overlap: Double = {
-    val activation = proximalDendrite.activation + predicationAverage.toDouble / 4.0
+    val activation = proximalDendrite.activation// + predicationAverage.toDouble / 4.0
 
     (if(activation < minOverlap) 0 else activation) * (1.0 + boost)
   }
@@ -84,6 +85,8 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     predicationAverage += predication
     activeDutyCycle += (if(active) 1 else 0)
     overlapDutyCycle += (if(overlap > minOverlap) 1 else 0)
+
+    ordinal = math.random
 
     if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
     else boost = 0

@@ -47,8 +47,9 @@ class Region(implicit val config: CLA.Config) { region =>
     val sorted = columns.sortBy { column =>
       //(column => (-column.overlap, -column.activeFromPrediction)
       val pred = if(column.activeFromPrediction) 1 else 0
+      //val pred = column.predicationAverage.toDouble
 
-      (-column.overlap, -pred)
+      (-column.overlap, -pred, column.ordinal)
     }
     val (topK, tail) = sorted.splitAt(desiredLocalActivity)
 

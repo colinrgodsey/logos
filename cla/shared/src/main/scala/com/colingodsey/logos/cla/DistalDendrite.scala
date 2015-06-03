@@ -12,7 +12,7 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
     //TODO: min threshold?
     mostActive = //segments.toStream.sortBy(-_.activation).headOption
       if(segments.isEmpty) None
-      else Some(segments.maxBy(s => (s.activation, s.potentialActivation)))
+      else Some(segments.maxBy(s => (s.activation, s.potentialActivation, math.random)))
 
     active = segments.exists(_.active)
   }
