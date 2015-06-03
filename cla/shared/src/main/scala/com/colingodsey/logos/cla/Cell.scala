@@ -39,11 +39,9 @@ final class Cell(val column: Column) extends NeuralNode {
     distalDendrite.mostActive.map(
       s => (s.activation, s.potentialActivation, math.random)) getOrElse (0, 0, 0.0)
 
+  def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
+
   def seedDistal(n: Int): Unit = {
-    val segments = distalDendrite.segments
-
-    def randomSegment = segments((math.random * segments.length).toInt)
-
     //TODO: only find semi active columns?
     for {
       i <- 0 until n
@@ -57,6 +55,13 @@ final class Cell(val column: Column) extends NeuralNode {
     //distalDendrite.reinforce()
 
     var pruned = distalDendrite.reinforceAndPrune()
+
+    if(math.random < 0.2) {
+      val segment = randomSegment
+
+      segment.reinforce()
+      pruned += segment.pruneSynapses()
+    }
 
     distalDendrite.mostActive.foreach { segment =>
       if(segment.synapses.length < seededDistalConnections) {
