@@ -4,14 +4,15 @@ package com.colingodsey.logos.cla
 final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Config) extends NeuralNode {
   var active = false
   var segments = IndexedSeq[DendriteSegment]()
-
-  //TODO: minThreshold?
-  def mostActive = //segments.toStream.sortBy(-_.activation).headOption
-    if(segments.isEmpty) None
-    else Some(segments.maxBy(s => (s.activation, s.potentialActivation)))
+  var mostActive: Option[DendriteSegment] = None
 
   def update(): Unit = {
     segments.foreach(_.update())
+
+    //TODO: min threshold?
+    mostActive = //segments.toStream.sortBy(-_.activation).headOption
+      if(segments.isEmpty) None
+      else Some(segments.maxBy(s => (s.activation, s.potentialActivation)))
 
     active = segments.exists(_.active)
   }

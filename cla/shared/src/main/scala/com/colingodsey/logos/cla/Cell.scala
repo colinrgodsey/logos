@@ -35,9 +35,9 @@ final class Cell(val column: Column) extends NeuralNode {
 
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
-  def predication: (Int, Int) =
+  def predication =
     distalDendrite.mostActive.map(
-      s => (s.activation, s.potentialActivation)) getOrElse (0, 0)
+      s => (s.activation, s.potentialActivation, math.random)) getOrElse (0, 0, 0.0)
 
   def seedDistal(n: Int): Unit = {
     val segments = distalDendrite.segments
@@ -47,8 +47,8 @@ final class Cell(val column: Column) extends NeuralNode {
     //TODO: only find semi active columns?
     for {
       i <- 0 until n
-      //segment = segments((math.random * segments.length).toInt)
-      segment = distalDendrite.mostActive getOrElse randomSegment
+      segment0 = distalDendrite.mostActive getOrElse randomSegment
+      segment = if(segment0.synapses.length >= seededDistalConnections) randomSegment else segment0
       otherCell = region.getRandomCell(column, useLearnCell = true)
     } segment.synapses :+= otherCell -> region.getRandomDistalPermanence
   }
@@ -56,7 +56,16 @@ final class Cell(val column: Column) extends NeuralNode {
   def reinforceDistal(): Unit = {
     //distalDendrite.reinforce()
 
-    val pruned = distalDendrite.reinforceAndPrune()
+    var pruned = distalDendrite.reinforceAndPrune()
+
+    distalDendrite.mostActive.foreach { segment =>
+      if(segment.synapses.length < seededDistalConnections) {
+        val otherCell = region.getRandomCell(column, useLearnCell = true)
+        segment.synapses :+= otherCell -> region.getRandomDistalPermanence
+        pruned -= 1
+      }
+
+    }
 
     if(pruned > 0) seedDistal(pruned)
   }

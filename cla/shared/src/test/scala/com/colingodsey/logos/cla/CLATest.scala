@@ -40,7 +40,7 @@ object CLATest extends TestSuite {
         region.update(encoder.encode(1))
         println(region.anomalyScore)
         //println(region.numActive)
-/*
+
         region.update(encoder.encode(0))
         println(region.anomalyScore)
         region.update(encoder.encode(0.75))
@@ -49,7 +49,7 @@ object CLATest extends TestSuite {
         println(region.anomalyScore)
         region.update(encoder.encode(1))
         println(region.anomalyScore)
-*/
+
         val r = (math.random * 4).toInt + 1
         //region.update(encoder.encode(r / 4.0))
       }

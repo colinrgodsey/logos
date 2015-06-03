@@ -15,7 +15,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
   var predicationAverage = RollingAverage(dutyAverageFrames)
   var activeDutyCycle = RollingAverage(dutyAverageFrames)
   var overlapDutyCycle = RollingAverage(dutyAverageFrames)
-
+  var learningCell = cells(0)
   var activeFromPrediction = false
 
   val cellIndexes = 0 until columnHeight
@@ -66,7 +66,7 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     new DendriteSegment(loc, nodes.toArray.toIndexedSeq)
   }
 
-  def overlap = {
+  def overlap: Double = {
     val activation = proximalDendrite.activation + predicationAverage.toDouble / 4.0
 
     (if(activation < minOverlap) 0 else activation) * (1.0 + boost)
@@ -115,12 +115,12 @@ final class Column(val region: Region, val loc: CLA.Location) { column =>
     proximalDendrite.reinforce()
   }
 
-  //TODO: add random?
-  def learningCell = cells.maxBy(_.predication)
 
   //active columns will 'tick' predictive state of cells
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
+
+    learningCell = cells.maxBy(_.predication)
 
     val hasPredictive = cells.exists(_.predictive)
 
