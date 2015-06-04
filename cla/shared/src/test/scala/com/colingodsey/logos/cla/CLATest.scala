@@ -13,6 +13,8 @@ object CLATest extends TestSuite {
     columnHeight = 32,
     regionWidth = 256, minOverlap = 5, inputConnectionsPerColumn = 30)
 
+  val sinSteps = 30
+
   /*
   implicit val config = CLA.DefaultConfig.copy(
     columnHeight = 20,
@@ -29,49 +31,22 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 500) {
-        //println(randomNormal(0.5))
-        region.update(encoder.encode(0))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.25))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.5))
-        println(region.anomalyScore)
-        region.update(encoder.encode(1))
-        println(region.anomalyScore)
-        //println(region.numActive)
+      for(_ <- 0 until 100) {
+        for(i <- 0 until sinSteps) {
+          val p = i / sinSteps.toDouble * math.Pi * 2
 
-        region.update(encoder.encode(0))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.75))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.5))
-        println(region.anomalyScore)
-        region.update(encoder.encode(1))
-        println(region.anomalyScore)
-
-        region.update(encoder.encode(1))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.25))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.5))
-        println(region.anomalyScore)
-        region.update(encoder.encode(0.60))
-        println(region.anomalyScore)
-/*
-        val r = (math.random * 4).toInt + 1
-        region.update(encoder.encode(r / 4.0))*/
+          region.update(encoder.encode(math.sin(p) / 2.0 + 0.5))
+          println("\t\t\t" + encoder.encode(math.sin(p) / 2.0 + 0.5))
+          println(region.anomalyScore)
+        }
       }
 
-      //region.update(encoder.encode(math.random))
-      region.update(encoder.encode(0))
-      region.update(encoder.encode(0.25))
       println(region.anomalyScore)
       println(region.columns.filter(_.active).mkString("\n"))
       println(region.columns.map(_.boost))
       println(region.columns.map(_.overlap))
 
-      region.update(encoder.encode(0.5))
+      region.update(encoder.encode(math.random))
       println(region.anomalyScore)
       println(region.columns.filter(_.active).mkString("\n"))
       println(region.columns.map(_.boost))
