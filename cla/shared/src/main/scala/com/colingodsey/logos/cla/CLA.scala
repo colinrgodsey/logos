@@ -58,8 +58,7 @@ trait NeuralNode {
   def loc: CLA.Location
 }
 
-
-
+final class NodeAndPermanence(var node: NeuralNode, var p: Double)
 
 
 

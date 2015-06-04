@@ -69,7 +69,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
         def loc: CLA.Location = inputMap(idx)
       }
 
-      (node, region.getRandomProximalPermanence)
+      new NodeAndPermanence(node, region.getRandomProximalPermanence)
     })
 
     new DendriteSegment(loc, region, nodes.toArray.toIndexedSeq)

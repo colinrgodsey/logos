@@ -7,7 +7,7 @@ import com.colingodsey.logos.collections.RollingAverage
 final class DendriteSegment(
     val loc: CLA.Location,
     val parent: DutyCycle.Booster,
-    synapses: IndexedSeq[(NeuralNode, Double)] = IndexedSeq.empty)(
+    synapses: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty)(
     implicit val config: CLA.Config) extends SDR {
   import config._
 
@@ -24,8 +24,8 @@ final class DendriteSegment(
 
   def receptiveRadius = {
     connections.iterator.map {
-      case (node, p) if p > connectionThreshold =>
-        math.abs(node.loc - loc)
+      case np if np.p > connectionThreshold =>
+        math.abs(np.node.loc - loc)
       case _ => 0
     }.max
   }
@@ -42,9 +42,9 @@ final class DendriteSegment(
     val l = connections.length
 
     while(i < l) {
-      val pair = connections(i)
-      val node = pair._1
-      val p = pair._2
+      val np = connections(i)
+      val node = np.node
+      val p = np.p
 
       val con = p > connectionThreshold
 
