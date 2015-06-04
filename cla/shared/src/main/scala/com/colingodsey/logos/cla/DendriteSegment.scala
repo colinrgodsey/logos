@@ -62,7 +62,7 @@ final class DendriteSegment(
 
     active = activation >= config.segmentThreshold
 
-    updateDutyCycle()
+    if(math.random < 0.20) updateDutyCycle()
   }
 
   def connectionThreshold: Double = config.connectionThreshold
