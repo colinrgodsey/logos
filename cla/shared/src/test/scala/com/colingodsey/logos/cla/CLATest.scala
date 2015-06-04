@@ -14,6 +14,7 @@ object CLATest extends TestSuite {
     regionWidth = 256, minOverlap = 5, inputConnectionsPerColumn = 30)
 
   val sinSteps = 30
+  val sinSteps2 = 10
 
   /*
   implicit val config = CLA.DefaultConfig.copy(
@@ -31,7 +32,7 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
-      for(_ <- 0 until 100) {
+      for(_ <- 0 until 150) {
         for(i <- 0 until sinSteps) {
           val p = i / sinSteps.toDouble * math.Pi * 2
 
@@ -40,6 +41,16 @@ object CLATest extends TestSuite {
           println(region.anomalyScore)
         }
       }
+/*
+      for(_ <- 0 until 30) {
+        for(i <- 0 until sinSteps2) {
+          val p = i / sinSteps2.toDouble * math.Pi * 2
+
+          region.update(encoder.encode(math.sin(p) / 2.0 + 0.5))
+          println("\t\t\t" + encoder.encode(math.sin(p) / 2.0 + 0.5))
+          println(region.anomalyScore)
+        }
+      }*/
 
       println(region.anomalyScore)
       println(region.columns.filter(_.active).mkString("\n"))

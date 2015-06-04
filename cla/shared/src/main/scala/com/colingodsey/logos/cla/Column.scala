@@ -132,8 +132,8 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     //TODO: only new synapses to learning cells?
     if(hasPredictive) {
       //TODO: most predictive only, or all predictive?
-      cells.filter(_.predictive).foreach(_.reinforceDistal())
-      //learningCell.reinforceDistal()
+      //cells.filter(_.predictive).foreach(_.reinforceDistal())
+      learningCell.reinforceDistal()
     } else {
       //only reinforce the 'learning cell' here (max predication)
       learningCell.reinforceDistal()
