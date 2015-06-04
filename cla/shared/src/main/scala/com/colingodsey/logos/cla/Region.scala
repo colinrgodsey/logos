@@ -99,8 +99,10 @@ trait SDR extends DutyCycle {
     case _ => false
   }
 
-  def addConnection(node: NeuralNode, p: Double) =
+  def addConnection(node: NeuralNode, p: Double) = {
+    node.connectOutput()
     connections :+= new NodeAndPermanence(node, p)
+  }
 
   def pruneSynapses(): Int = if(needsPruning) {
     var pruned = 0
@@ -108,6 +110,7 @@ trait SDR extends DutyCycle {
     connections = connections filter {
       case np if np.p < minDistalPermanence =>
         pruned += 1
+        np.node.disconnectOutput()
         false
       case _ => true
     }

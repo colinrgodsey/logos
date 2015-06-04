@@ -117,13 +117,6 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    //val maxPredictiveDuty = mostPredictiveDutyCell.mostPredictiveDutyCycle.toDouble
-    //val minPredictiveDuty = maxPredictiveDuty * 0.01
-
-    //leastPredictiveDutyCell.reinforceDistal()
-
-    //cells.foreach(_.boostPredictive(minPredictiveDuty))
-
     //TOD: this is breaking consistency. updates happening while reffing other selectedLearningCell
     selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
 

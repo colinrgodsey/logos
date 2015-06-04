@@ -57,9 +57,16 @@ object CLA {
 }
 
 trait NeuralNode {
+  private var _numOutputs = 0
+
   def active: Boolean
 
   def loc: CLA.Location
+
+  def numOutputs = _numOutputs
+
+  def connectOutput(): Unit = _numOutputs += 1
+  def disconnectOutput(): Unit = _numOutputs -= 1
 }
 
 final class NodeAndPermanence(var node: NeuralNode, var p: Double)

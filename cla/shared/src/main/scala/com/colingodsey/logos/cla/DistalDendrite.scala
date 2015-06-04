@@ -34,8 +34,9 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
     //segments.foreach(_.reinforce())
     val max = mostActive
 
-    leastActiveDuty.reinforce()
-    val leastPruned = leastActiveDuty.pruneSynapses()
+    /*leastActiveDuty.reinforce()
+    val leastPruned = leastActiveDuty.pruneSynapses()*/
+    val leastPruned = 0
 
     val mostPruned = /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
       segment.reinforce()
