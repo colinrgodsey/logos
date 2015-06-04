@@ -50,9 +50,9 @@ final class Cell(val column: Column) extends NeuralNode {
     for {
       i <- 0 until n
       segment0 = randomSegment
-      segment = if(segment0.connections.length >= seededDistalConnections) randomSegment else segment0
+      segment = if(segment0.numConnections >= seededDistalConnections) randomSegment else segment0
       otherCell = region.getRandomCell(column, useLearnCell = true)
-    } segment.connections :+= otherCell -> region.getRandomDistalPermanence
+    } segment.addConnection(otherCell, region.getRandomDistalPermanence)
   }
 
 
@@ -74,13 +74,13 @@ final class Cell(val column: Column) extends NeuralNode {
       def otherCell = region.getRandomCell(column, useLearnCell = true)
 
       distalDendrite.mostActive match {
-        case Some(segment) if segment.connections.length < seededDistalConnections =>
-          segment.connections :+= otherCell -> region.getRandomDistalPermanence
+        case Some(segment) if segment.numConnections < seededDistalConnections =>
+          segment.addConnection(otherCell, region.getRandomDistalPermanence)
           //seedDistal(math.max(1, pruned - 1))
         case _ if distalDendrite.synapseFillPercent < 0.5 =>
           seedDistal(5)
         case _ =>
-          distalDendrite.leastActiveDuty.connections :+= otherCell -> region.getRandomDistalPermanence
+          distalDendrite.leastActiveDuty.addConnection(otherCell, region.getRandomDistalPermanence)
           //seedDistal(math.max(1, pruned))
       }
     }

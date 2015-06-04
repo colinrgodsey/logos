@@ -20,7 +20,7 @@ final class DendriteSegment(
   val overlapDutyCycle = RollingAverage(dutyAverageFrames)
   //var sequenceSegment = false
 
-  var connections = synapses
+  protected var connections = synapses.toArray
 
   def receptiveRadius = {
     connections.iterator.map {
@@ -62,9 +62,10 @@ final class DendriteSegment(
 
     active = activation >= config.segmentThreshold
 
-    if(math.random < 0.20) updateDutyCycle()
+    updateDutyCycle()
   }
 
+  def dutyCycleUpdateRatio = config.segmentDutyCycleRatio
   def connectionThreshold: Double = config.connectionThreshold
   def minDistalPermanence: Double = config.minDistalPermanence
   def permanenceInc: Double = config.permanenceInc

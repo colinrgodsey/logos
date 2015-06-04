@@ -14,7 +14,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
   var active = false
   var proximalDendrite = createProximalDendrite
-  var selectedLearningCell: Option[Cell] = None
+  @volatile var selectedLearningCell: Option[Cell] = None
   var wasPredicted = false
   var ordinal = math.random
 
@@ -45,6 +45,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   def activationThreshold = minOverlap
   def boostIncr = config.boostIncr
   def activation = proximalDendrite.activation
+  def dutyCycleUpdateRatio = config.columnDutyCycleRatio
 
   def randomCell = cells((cells.length * math.random).toInt)
   def learningCell = selectedLearningCell.getOrElse(randomCell)
@@ -87,13 +88,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     ordinal = math.random
   }
 
-  def boostPermanence(): Unit = {
-    val synapses = proximalDendrite.connections map {
-      case (node, p) => node -> (p + connectionThreshold * 0.1)
-    }
-
-    proximalDendrite.connections = synapses
-  }
+  def boostPermanence(): Unit = proximalDendrite.boostPermanence()
 
   //only for strict inhibition radius
   def spatialPooler(): Unit = {
@@ -128,6 +123,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
     //cells.foreach(_.boostPredictive(minPredictiveDuty))
 
+    //TOD: this is breaking consistency. updates happening while reffing other selectedLearningCell
     selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
 
     val hasPredictive = cells.exists(_.predictive)
@@ -178,7 +174,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     segment <- segments
     otherCells = Seq.fill(segmentThreshold + 3)(region.getRandomCell(column, useLearnCell = false))
     otherCell <- otherCells
-  } segment.connections :+= otherCell -> region.getRandomDistalPermanence
+  } segment.addConnection(otherCell, region.getRandomDistalPermanence)
 
 
 }

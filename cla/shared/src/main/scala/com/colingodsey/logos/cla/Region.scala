@@ -3,6 +3,10 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.collections.ExtraMath.randomNormal
 import com.colingodsey.logos.collections.RollingAverage
 
+import scala.collection.immutable.VectorBuilder
+import scala.concurrent.{Await, Future, ExecutionContext}
+import scala.concurrent.duration._
+
 trait DutyCycle extends NeuralNode {
   private var _boost = 0.0
 
@@ -13,6 +17,7 @@ trait DutyCycle extends NeuralNode {
   def activation: Int
   def active: Boolean
   def boostPermanence(): Unit
+  def dutyCycleUpdateRatio: Double
   val activeDutyCycle: RollingAverage
   val overlapDutyCycle: RollingAverage
 
@@ -27,7 +32,7 @@ trait DutyCycle extends NeuralNode {
   }
 
   //TODO: data from parent, or inhibition radius?
-  def updateDutyCycle(): Unit = {
+  def updateDutyCycle(): Unit = if(math.random < dutyCycleUpdateRatio) {
     //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
 
     val maxDutyCycle = parent.maxDutyCycle
@@ -62,27 +67,42 @@ trait SDR extends DutyCycle {
   def permanenceDec: Double
   def minDistalPermanence: Double
 
-  var connections: IndexedSeq[(NeuralNode, Double)]
+  protected var connections: Array[(NeuralNode, Double)]
+
+  def numConnections = connections.length
 
   def boostPermanence(): Unit = {
-    connections = connections map {
-      case (node, p) => node -> (p + connectionThreshold * 0.1)
+    for(i <- 0 until connections.length) {
+      val (node, p) = connections(i)
+
+      connections(i) = node -> (p + connectionThreshold * 0.1)
     }
   }
 
   //TODO: minActivation?
   def reinforce(): Unit = /*if(activation > minActivation)*/ {
-    connections = connections map {
-      case (node, p) =>
-        val newP =
-          if (node.active) math.min(1.0, p + permanenceInc)
-          else math.max(0.0, p - permanenceDec)
+    for(i <- 0 until connections.length) {
+      val (node, p) = connections(i)
 
-        node -> newP
+      val newP =
+        if (node.active) math.min(1.0, p + permanenceInc)
+        else math.max(0.0, p - permanenceDec)
+
+      if(newP != p)
+        connections(i) = node -> newP
     }
   }
 
-  def pruneSynapses(): Int = {
+  //TODO: merge into reinforce?
+  def needsPruning = connections.exists {
+    case (_, p) if p < minDistalPermanence => true
+    case _ => false
+  }
+
+  def addConnection(node: NeuralNode, p: Double) =
+    connections :+= node -> p
+
+  def pruneSynapses(): Int = if(needsPruning) {
     var pruned = 0
 
     connections = connections filter {
@@ -93,10 +113,11 @@ trait SDR extends DutyCycle {
     }
 
     pruned
-  }
+  } else 0
 }
 
-class Region(implicit val config: CLA.Config) extends DutyCycle.Booster { region =>
+class Region(implicit val config: CLA.Config,
+    val ec: ExecutionContext = CLA.newDefaultExecutionContext) extends DutyCycle.Booster { region =>
   import com.colingodsey.logos.cla.CLA._
   import config._
 
@@ -113,9 +134,11 @@ class Region(implicit val config: CLA.Config) extends DutyCycle.Booster { region
   def update(input: Input): Unit = {
     for(i <- 0 until input.length) this.input(i) = input(i)
 
-    spatialPooler()
-    columns.foreach(_.temporalPrePooler())
-    columns.foreach(_.temporalPostPooler())
+    val topActive = spatialPooler()
+    //columns.foreach(_.temporalPrePooler())
+    //TODO: is this really thread safe? prepooler?
+    distributedExec(desiredLocalActivity / 4, topActive)(_.temporalPrePooler())
+    topActive.foreach(_.temporalPostPooler())
   }
 
   def columnsNear(loc: Location, rad: Radius) = {
@@ -130,7 +153,32 @@ class Region(implicit val config: CLA.Config) extends DutyCycle.Booster { region
 
   def anomalyScore = 1.0 - numActiveFromPrediction / numActive.toDouble
 
-  def spatialPooler(): Unit = {
+  def distributedExec[T](chunkSize: Int, items: IndexedSeq[T])(f: T => Unit): Unit = {
+    val vectorBuilder = new VectorBuilder[Future[Unit]]
+    var i = 0
+    var firstChunk: Iterator[T] = null
+
+    while(i < items.length) {
+      val chunk = items.iterator.slice(i, i + chunkSize)
+
+      if(firstChunk == null) firstChunk = chunk
+      else vectorBuilder += Future(chunk foreach f)
+
+      i += chunkSize
+    }
+
+    val futures = vectorBuilder.result()
+    val future = Future.sequence(futures)
+
+    //reuse same thread for first chunk
+    if(firstChunk != null) firstChunk foreach f
+
+    Await.result(future, 100.seconds)
+
+    ()
+  }
+
+  def spatialPooler(): IndexedSeq[Column] = {
     //clear activation state and update input
     columns.foreach { column =>
       column.active = false
@@ -153,14 +201,16 @@ class Region(implicit val config: CLA.Config) extends DutyCycle.Booster { region
 
     /*
     columns.foreach(_.spatialPooler())
-
 */
 
     //update rolling averages
-    columns.foreach(_.updateDutyCycle())
+    //columns.foreach(_.updateDutyCycle())
+    distributedExec(regionWidth / 4, columns)(_.updateDutyCycle())
 
-    maxDutyCycle = columns.iterator.map(_.activeDutyCycle.toDouble).max
+    maxDutyCycle = columns.maxBy(_.activeDutyCycle.toDouble).activeDutyCycle.toDouble
     inhibitionRadiusAverage += averageReceptiveFieldRadius / inputWidth * regionWidth
+
+    topK
   }
 
   def averageReceptiveFieldRadius = {

@@ -16,7 +16,7 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
 
   def update(): Unit = {
     segments.foreach(_.update())
-    synapseFillPercent = segments.iterator.map(_.connections.length).sum / (segments.length * seededDistalConnections)
+    synapseFillPercent = segments.iterator.map(_.numConnections).sum / (segments.length * seededDistalConnections)
 
     //TODO: min threshold?
     mostActive = //segments.toStream.sortBy(-_.activation).headOption
@@ -44,12 +44,4 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
 
     leastPruned + mostPruned
   }
-
-  /*def maybeAddSynapse(): Unit = {
-    segments.foreach { segment =>
-      if(segments)
-    }
-  }*/
-
-  //def pruneSynapses(): Int = segments.iterator.map(_.pruneSynapses()).sum
 }
