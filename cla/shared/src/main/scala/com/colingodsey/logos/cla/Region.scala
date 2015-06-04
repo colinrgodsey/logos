@@ -7,117 +7,11 @@ import scala.collection.immutable.VectorBuilder
 import scala.concurrent.{Await, Future, ExecutionContext}
 import scala.concurrent.duration._
 
-trait DutyCycle extends NeuralNode {
-  private var _boost = 0.0
 
-  def parent: DutyCycle.Booster
 
-  def boostIncr: Double
-  def activationThreshold: Int
-  def activation: Int
-  def active: Boolean
-  def boostPermanence(): Unit
-  def dutyCycleUpdateRatio: Double
-  val activeDutyCycle: RollingAverage
-  val overlapDutyCycle: RollingAverage
 
-  def boost = _boost
-  protected def boost_=(x: Double) = _boost = x
 
-  def overlap: Double = {
-    val a = activation
 
-    if(a < activationThreshold) 0.0
-    else a * (1.0 + boost)
-  }
-
-  //TODO: data from parent, or inhibition radius?
-  def updateDutyCycle(): Unit = if(math.random < dutyCycleUpdateRatio) {
-    //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
-
-    val maxDutyCycle = parent.maxDutyCycle
-    val minDutyCycle = 0.01 * maxDutyCycle
-
-    activeDutyCycle += (if(active) 1 else 0)
-    overlapDutyCycle += (if(overlap >= activationThreshold) 1 else 0)
-
-    if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
-    else boost = 0
-
-    //enforce all synapses a small amount
-    if(overlapDutyCycle.toDouble <= minDutyCycle)
-      boostPermanence()
-  }
-
-}
-
-object DutyCycle {
-  trait Booster {
-    def maxDutyCycle: Double
-  }
-
-  trait Inhibitor {
-
-  }
-}
-
-trait SDR extends DutyCycle {
-  def connectionThreshold: Double
-  def permanenceInc: Double
-  def permanenceDec: Double
-  def minDistalPermanence: Double
-
-  protected var connections: Array[NodeAndPermanence]
-
-  def numConnections = connections.length
-
-  def boostPermanence(): Unit = {
-    for(i <- 0 until connections.length) {
-      val np = connections(i)
-
-      np.p = (np.p + connectionThreshold * 0.1)
-    }
-  }
-
-  //TODO: minActivation?
-  def reinforce(): Unit = /*if(activation > minActivation)*/ {
-    for(i <- 0 until connections.length) {
-      val np = connections(i)
-
-      val newP =
-        if (np.node.active) math.min(1.0, np.p + permanenceInc)
-        else math.max(0.0, np.p - permanenceDec)
-
-      if(newP != np.p)
-        np.p = newP
-    }
-  }
-
-  //TODO: merge into reinforce?
-  def needsPruning = connections.exists {
-    case np if np.p < minDistalPermanence => true
-    case _ => false
-  }
-
-  def addConnection(node: NeuralNode, p: Double) = {
-    node.connectOutput()
-    connections :+= new NodeAndPermanence(node, p)
-  }
-
-  def pruneSynapses(): Int = if(needsPruning) {
-    var pruned = 0
-
-    connections = connections filter {
-      case np if np.p < minDistalPermanence =>
-        pruned += 1
-        np.node.disconnectOutput()
-        false
-      case _ => true
-    }
-
-    pruned
-  } else 0
-}
 
 class Region(implicit val config: CLA.Config,
     val ec: ExecutionContext = CLA.newDefaultExecutionContext) extends DutyCycle.Booster { region =>
