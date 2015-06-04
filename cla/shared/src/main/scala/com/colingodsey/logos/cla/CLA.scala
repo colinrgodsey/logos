@@ -32,9 +32,13 @@ object CLA {
       permanenceDec: Double = 0.05,
 
       boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 5
+      dutyAverageFrames: Int = 5,
+
+      specificNumWorkers: Option[Int] = None
   ) {
     require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")
+
+    val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()
   }
 
   val DefaultConfig = Config()
@@ -59,7 +63,6 @@ trait NeuralNode {
 }
 
 final class NodeAndPermanence(var node: NeuralNode, var p: Double)
-
 
 
 

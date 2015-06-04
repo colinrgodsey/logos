@@ -137,7 +137,7 @@ class Region(implicit val config: CLA.Config,
     val topActive = spatialPooler()
     //columns.foreach(_.temporalPrePooler())
     //TODO: is this really thread safe? prepooler?
-    distributedExec(desiredLocalActivity / 4, topActive)(_.temporalPrePooler())
+    distributedExec(desiredLocalActivity / numWorkers, topActive)(_.temporalPrePooler())
     topActive.foreach(_.temporalPostPooler())
   }
 
@@ -205,7 +205,7 @@ class Region(implicit val config: CLA.Config,
 
     //update rolling averages
     //columns.foreach(_.updateDutyCycle())
-    distributedExec(regionWidth / 4, columns)(_.updateDutyCycle())
+    distributedExec(regionWidth / numWorkers, columns)(_.updateDutyCycle())
 
     maxDutyCycle = columns.maxBy(_.activeDutyCycle.toDouble).activeDutyCycle.toDouble
     inhibitionRadiusAverage += averageReceptiveFieldRadius / inputWidth * regionWidth

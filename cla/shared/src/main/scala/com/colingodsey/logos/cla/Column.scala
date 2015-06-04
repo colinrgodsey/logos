@@ -113,6 +113,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     cells.maxBy(x => (x.mostPredictiveDutyCycle.toDouble, math.random))
 
   //active columns will 'tick' predictive state of cells
+  //TODO: should this fire if active, or if overlap > minOverlap?
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
@@ -170,11 +171,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     cell <- cells
     nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
     segments = Array.fill(nSegments)(new DendriteSegment(column.loc, cell.distalDendrite))
-    _ = cell.distalDendrite.segments = segments
-    segment <- segments
-    otherCells = Seq.fill(segmentThreshold + 3)(region.getRandomCell(column, useLearnCell = false))
-    otherCell <- otherCells
-  } segment.addConnection(otherCell, region.getRandomDistalPermanence)
+  } cell.distalDendrite.segments = segments
 
 
 }
