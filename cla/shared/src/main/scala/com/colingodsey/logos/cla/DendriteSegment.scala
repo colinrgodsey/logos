@@ -60,7 +60,7 @@ final class DendriteSegment(
     receptive = rec
     potentialActivation = potAct
 
-    active = activation >= config.segmentThreshold
+    active = activation >= activationThreshold
 
     updateDutyCycle()
   }
@@ -72,4 +72,6 @@ final class DendriteSegment(
   def permanenceDec: Double = config.permanenceDec
   def boostIncr: Double = config.boostIncr
   def activationThreshold: Int = config.segmentThreshold
+
+  override def minThreshold = activationThreshold / 2.0
 }

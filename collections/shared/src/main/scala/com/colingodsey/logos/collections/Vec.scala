@@ -1,5 +1,7 @@
 package com.colingodsey.logos.collections
 
+import scala.util.Random
+
 object Vec {
   def zero[T <: Vec](implicit vb: VecCompanion[T]) = vb.zero
 
@@ -260,8 +262,15 @@ object Vec3 extends VecCompanion[Vec3] with VecNumeric[Vec3] {
   val my = -y
   val mz = -z
 
-  def random = (Vec3(math.random, math.random,
+  def random: Vec3 = (Vec3(math.random, math.random,
     math.random) * 2 - Vec3.one).normal
+
+  def random(seed: Int): Vec3 = {
+    val r = new Random(seed)
+
+    (Vec3(r.nextDouble(), r.nextDouble(),
+      r.nextDouble()) * 2 - Vec3.one).normal
+  }
 
   def dimensions: Dimensions = Dimensions.Two
 

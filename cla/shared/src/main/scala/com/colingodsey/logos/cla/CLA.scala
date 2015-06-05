@@ -1,8 +1,8 @@
 package com.colingodsey.logos.cla
 
-import java.util.concurrent.Executors
-
 import scala.concurrent.ExecutionContext
+
+import DefaultShadow._
 
 /*
 Future ideas:
@@ -32,7 +32,7 @@ object CLA {
       permanenceDec: Double = 0.05,
 
       boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 5,
+      dutyAverageFrames: Int = 40,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -53,7 +53,26 @@ object CLA {
 
   type Radius = Double
 
-  def newDefaultExecutionContext = ExecutionContext.fromExecutor(Executors.newCachedThreadPool)
+  private object _VM {
+    //shadow from on high
+    import shadow._
+
+    val VM = VMImpl
+  }
+
+  val VM = _VM.VM
+}
+
+
+object DefaultShadow {
+
+  //to be replaced by shadow context
+  object VMImpl {
+    def newDefaultExecutionContext: ExecutionContext = ???
+
+    def distributedExec[T](chunkSize: Int, items: IndexedSeq[T])(f: T => Unit): Unit = ???
+  }
+
 }
 
 trait NeuralNode {

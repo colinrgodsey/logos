@@ -14,8 +14,8 @@ import scala.concurrent.duration._
 
 
 class Region(implicit val config: CLA.Config,
-    val ec: ExecutionContext = CLA.newDefaultExecutionContext) extends DutyCycle.Booster { region =>
-  import com.colingodsey.logos.cla.CLA._
+    val ec: ExecutionContext = CLA.VM.newDefaultExecutionContext) extends DutyCycle.Booster { region =>
+  import CLA._
   import config._
 
   val columns = (0 until regionWidth).map(new Column(region, _)).toVector
@@ -34,7 +34,7 @@ class Region(implicit val config: CLA.Config,
     val topActive = spatialPooler()
     //columns.foreach(_.temporalPrePooler())
     //TODO: is this really thread safe? prepooler?
-    distributedExec(desiredLocalActivity / numWorkers, topActive)(_.temporalPrePooler())
+    VM.distributedExec(desiredLocalActivity / numWorkers, topActive)(_.temporalPrePooler())
     topActive.foreach(_.temporalPostPooler())
   }
 
@@ -48,31 +48,11 @@ class Region(implicit val config: CLA.Config,
   def numActiveFromPrediction = columns.count(column => column.active && column.wasPredicted)
   def numActive = columns.count(_.active)
 
-  def anomalyScore = 1.0 - numActiveFromPrediction / numActive.toDouble
+  def anomalyScore = {
+    val na = numActive.toDouble
 
-  def distributedExec[T](chunkSize: Int, items: IndexedSeq[T])(f: T => Unit): Unit = {
-    val vectorBuilder = new VectorBuilder[Future[Unit]]
-    var i = 0
-    var firstChunk: Iterator[T] = null
-
-    while(i < items.length) {
-      val chunk = items.iterator.slice(i, i + chunkSize)
-
-      if(firstChunk == null) firstChunk = chunk
-      else vectorBuilder += Future(chunk foreach f)
-
-      i += chunkSize
-    }
-
-    val futures = vectorBuilder.result()
-    val future = Future.sequence(futures)
-
-    //reuse same thread for first chunk
-    if(firstChunk != null) firstChunk foreach f
-
-    Await.result(future, 100.seconds)
-
-    ()
+    if(na == 0) 0.0
+    else 1.0 - numActiveFromPrediction / na
   }
 
   def spatialPooler(): IndexedSeq[Column] = {
@@ -102,7 +82,7 @@ class Region(implicit val config: CLA.Config,
 
     //update rolling averages
     //columns.foreach(_.updateDutyCycle())
-    distributedExec(regionWidth / numWorkers, columns)(_.updateDutyCycle())
+    VM.distributedExec(regionWidth / numWorkers, columns)(_.updateDutyCycle())
 
     maxDutyCycle = columns.maxBy(_.activeDutyCycle.toDouble).activeDutyCycle.toDouble
     inhibitionRadiusAverage += averageReceptiveFieldRadius / inputWidth * regionWidth
