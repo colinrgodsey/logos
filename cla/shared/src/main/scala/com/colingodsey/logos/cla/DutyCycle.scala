@@ -26,13 +26,17 @@ trait DutyCycle extends NeuralNode {
   val activeDutyCycle: RollingAverage
   val overlapDutyCycle: RollingAverage
 
+  def minThreshold: Double = activationThreshold
+
+  def competition = math.max(overlapDutyCycle.toDouble - activeDutyCycle.toDouble, 0.0)
+
   def boost = _boost
   protected def boost_=(x: Double) = _boost = x
 
   def overlap: Double = {
     val a = activation
 
-    if(a < activationThreshold) 0.0
+    if(a < minThreshold) 0.0
     else a * (1.0 + boost)
   }
 
@@ -46,7 +50,7 @@ trait DutyCycle extends NeuralNode {
     activeDutyCycle += (if(active) 1 else 0)
     overlapDutyCycle += (if(overlap >= activationThreshold) 1 else 0)
 
-    if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr
+    if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr * math.random
     else boost = 0
 
     //enforce all synapses a small amount

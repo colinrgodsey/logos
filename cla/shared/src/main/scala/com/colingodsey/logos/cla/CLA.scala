@@ -5,6 +5,15 @@ import scala.concurrent.ExecutionContext
 import DefaultShadow._
 
 /*
+reinforcement learning
+
+each(?) learning cell gets a global reward (-1, 1) at the end of a cycle.
+That learning cell also fires a global reward when selected (positive or negative).
+Columns are sorted by reward and selected for action
+Some columns have no action (critical for idleness)
+ */
+
+/*
 Future ideas:
   Neurotransmitter-like VecN 'cloud'. Eventual localized distribution of modulator values (VecN?)
 

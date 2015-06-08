@@ -14,7 +14,7 @@ trait SDR extends DutyCycle {
     for(i <- 0 until connections.length) {
       val np = connections(i)
 
-      np.p = (np.p + connectionThreshold * 0.1)
+      np.p = (np.p + connectionThreshold * 0.1 * math.random)
     }
   }
 

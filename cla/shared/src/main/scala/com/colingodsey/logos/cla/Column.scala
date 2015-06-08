@@ -12,11 +12,12 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   val activeDutyCycle = RollingAverage(dutyAverageFrames)
   val overlapDutyCycle = RollingAverage(dutyAverageFrames)
 
+  val uuid = math.random
+
   var active = false
   var proximalDendrite = createProximalDendrite
   @volatile var selectedLearningCell: Option[Cell] = None
   var wasPredicted = false
-  var ordinal = math.random
 
   val cellIndexes = 0 until columnHeight
 
@@ -49,6 +50,8 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
   def randomCell = cells((cells.length * math.random).toInt)
   def learningCell = selectedLearningCell.getOrElse(randomCell)
+
+  def ordinal = uuid
 
   def input(idx: Int) = region.input(inputMap(idx))
 
@@ -84,8 +87,6 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     predicationAverage += predication
 
     super[DutyCycle].updateDutyCycle()
-
-    ordinal = math.random
   }
 
   def boostPermanence(): Unit = proximalDendrite.boostPermanence()
@@ -103,7 +104,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
   def predication = learningCell.activationOrdinal._1
 
-  def updatePermanence(): Unit = if(active) {
+  def updatePermanence(): Unit = {
     proximalDendrite.reinforce()
   }
 
