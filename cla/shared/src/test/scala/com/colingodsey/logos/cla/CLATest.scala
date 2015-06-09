@@ -8,11 +8,11 @@ import com.colingodsey.logos.collections.ExtraMath.randomNormal
 object CLATest extends TestSuite {
 
   implicit val config = CLA.DefaultConfig.copy(
-    //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
     columnHeight = 32,
-    //inputWidth = 80, inputConnectionsPerColumn = 30,
-    inputWidth = 120, inputConnectionsPerColumn = 40,
-    regionWidth = 256, minOverlap = 5)
+    //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
+    inputWidth = 80, inputConnectionsPerColumn = 30,
+    desiredLocalActivity = 30,
+    regionWidth = 256, minOverlap = 6)
 
   val sinSteps = 30
   val sinSteps2 = 70
@@ -34,6 +34,7 @@ object CLATest extends TestSuite {
 
       region.seedDistalSynapses()
 
+
       for(i <- 0 until 10000) {
         val t = (i % sinSteps) / sinSteps.toDouble
         val t2 = (i % sinSteps2) / sinSteps2.toDouble
@@ -44,7 +45,7 @@ object CLATest extends TestSuite {
         val s3 = math.sin(t3 * math.Pi * 2) / 2.0 + 0.5
 
         //val r = s * s2
-        val r = if(i < 5000) (s + s2) / 2.0
+        val r = if(i < 5000 || true) (s + s2) / 2.0
         else (s + s2 + s3) / 3.0
 
         region.update(encoder.encode(r))
@@ -52,7 +53,6 @@ object CLATest extends TestSuite {
         println(region.anomalyScore)
 
       }
-
       println(region.anomalyScore)
       println(region.columns.filter(_.active).mkString("\n"))
       println(region.columns.map(_.boost))

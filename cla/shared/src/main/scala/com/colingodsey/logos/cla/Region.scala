@@ -58,6 +58,7 @@ class Region(implicit val config: CLA.Config,
   def spatialPooler(): IndexedSeq[Column] = {
     //clear activation state and update input
     columns.foreach { column =>
+      column.wasActive = column.active
       column.active = false
       column.proximalDendrite.update()
     }

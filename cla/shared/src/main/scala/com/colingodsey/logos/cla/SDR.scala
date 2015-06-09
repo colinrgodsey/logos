@@ -8,6 +8,8 @@ trait SDR extends DutyCycle {
 
   protected var connections: Array[NodeAndPermanence]
 
+  //private var connectedTo = Set[NeuralNode]()
+
   def numConnections = connections.length
 
   def boostPermanence(): Unit = {
@@ -38,9 +40,22 @@ trait SDR extends DutyCycle {
     case _ => false
   }
 
-  def addConnection(node: NeuralNode, p: Double) = {
+  def connectedTo(n: NeuralNode) = connections.exists(_.node == n)
+
+  def addConnection(node: NeuralNode, p: Double) = if(!connectedTo(node)) {
     node.connectOutput()
     connections :+= new NodeAndPermanence(node, p)
+    //connectedTo += node
+  }
+
+  private def removeConnection0(node: NeuralNode): Unit = if(connectedTo(node)) {
+    //connectedTo -= node
+    node.disconnectOutput()
+  }
+
+  def removeConnection(node: NeuralNode): Unit = if(connectedTo(node)) {
+    connections = connections.filter(_.node != node)
+    removeConnection0(node)
   }
 
   def pruneSynapses(): Int = if(needsPruning) {
@@ -49,7 +64,7 @@ trait SDR extends DutyCycle {
     connections = connections filter {
       case np if np.p < minDistalPermanence =>
         pruned += 1
-        np.node.disconnectOutput()
+        removeConnection0(np.node)
         false
       case _ => true
     }

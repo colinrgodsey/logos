@@ -4,7 +4,7 @@ import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
-final class Cell(val column: Column) extends NeuralNode {
+final class Cell(val column: Column) extends NeuralNode { cell =>
   import column.region
   import region.config
   import config._
@@ -13,6 +13,7 @@ final class Cell(val column: Column) extends NeuralNode {
   private var _active = false
 
   val distalDendrite = new DistalDendrite(column.loc)
+  val ordinal = math.random
 
   def active = _active
 
@@ -41,7 +42,7 @@ final class Cell(val column: Column) extends NeuralNode {
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
   def activationOrdinal =
-    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0, 0.0)
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, 0.0)
 
   def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
@@ -55,34 +56,38 @@ final class Cell(val column: Column) extends NeuralNode {
     } segment.addConnection(otherCell, region.getRandomDistalPermanence)
   }
 
+  def addNewSegment(): Unit = {
+    val segment = new DendriteSegment(loc, distalDendrite)
+
+    val predictedColumns = column.region.columns.filter(c => c.wasActive && c != cell.column)
+
+    if(predictedColumns.isEmpty) return
+
+    distalDendrite.segments :+= segment
+
+    for(_ <- 0 until config.seededDistalConnections) {
+      val selected = predictedColumns((predictedColumns.length * math.random).toInt)
+
+      val cell = selected.learningCell
+
+      segment.addConnection(cell, region.getRandomDistalPermanence)
+    }
+  }
 
   def reinforceDistal(): Unit = {
     //distalDendrite.reinforce()
 
     val pruned = distalDendrite.reinforceAndPrune()
 
-    /*if(math.random < 0.2) {
-      val segment = randomSegment
+    val full = distalDendrite.isFull
 
-      segment.reinforce()
-      pruned += segment.pruneSynapses()
-    }*/
+    if(!distalDendrite.active && !full) {
+      addNewSegment()
+    } else if(full) {
+      val toRemove = distalDendrite.leastActiveDuty
 
-    if(distalDendrite.synapseFillPercent < 1 || pruned > 0) {
-      if(pruned > 0) seedDistal(pruned)
-
-      def otherCell = region.getRandomCell(column, useLearnCell = true)
-
-      distalDendrite.mostActive match {
-        case Some(segment) if segment.numConnections < seededDistalConnections =>
-          segment.addConnection(otherCell, region.getRandomDistalPermanence)
-          //seedDistal(math.max(1, pruned - 1))
-        case _ if distalDendrite.synapseFillPercent < 0.5 =>
-          seedDistal(5)
-        case _ =>
-          distalDendrite.leastActiveDuty.addConnection(otherCell, region.getRandomDistalPermanence)
-          //seedDistal(math.max(1, pruned))
-      }
+      distalDendrite.segments =
+        distalDendrite.segments.filter(_ != toRemove)
     }
   }
 

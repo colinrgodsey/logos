@@ -20,6 +20,8 @@ final class DendriteSegment(
   val overlapDutyCycle = RollingAverage(dutyAverageFrames)
   //var sequenceSegment = false
 
+  val ordinal = math.random
+
   protected var connections = synapses.toArray
 
   def receptiveRadius = {
@@ -31,7 +33,8 @@ final class DendriteSegment(
   }
 
   //TODO: min activation for boost?
-  def activationOrdinal = (overlap, activation, /*potentialActivation,*/ math.random)
+  //def activationOrdinal = (overlap, activation, potentialActivation, ordinal)
+  def activationOrdinal = (overlap, activation.toDouble + potentialActivation.toDouble, 0.0, ordinal)
 
   def update(): Unit = {
     var act = 0
@@ -62,6 +65,8 @@ final class DendriteSegment(
 
     active = activation >= activationThreshold
 
+    if(active) boost = 0.0
+
     updateDutyCycle()
   }
 
@@ -73,5 +78,5 @@ final class DendriteSegment(
   def boostIncr: Double = config.boostIncr
   def activationThreshold: Int = config.segmentThreshold
 
-  override def minThreshold = activationThreshold / 2.0
+  override def minThreshold = activationThreshold
 }

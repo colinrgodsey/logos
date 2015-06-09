@@ -18,6 +18,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   var proximalDendrite = createProximalDendrite
   @volatile var selectedLearningCell: Option[Cell] = None
   var wasPredicted = false
+  var wasActive = false
 
   val cellIndexes = 0 until columnHeight
 
@@ -109,9 +110,9 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   }
 
   def leastPredictiveDutyCell =
-    cells.minBy(x => (x.leastPredictiveDutyCycle.toDouble, math.random))
+    cells.minBy(x => (x.leastPredictiveDutyCycle.toDouble, x.ordinal))
   def mostPredictiveDutyCell =
-    cells.maxBy(x => (x.mostPredictiveDutyCycle.toDouble, math.random))
+    cells.maxBy(x => (x.mostPredictiveDutyCycle.toDouble, x.ordinal))
 
   //active columns will 'tick' predictive state of cells
   //TODO: should this fire if active, or if overlap > minOverlap?
@@ -152,6 +153,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   } else {
     //deactivate all
     cells.foreach(_.deactivate())
+    wasPredicted = false
   }
 
   def activate(): Unit = {
@@ -161,11 +163,12 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
   //TODO: seed favouring locality
   //TODO: multiple connections to same cell?
+
   def seedDistalSynapses(): Unit = for {
     cell <- cells
-    nSegments = math.floor(math.random * maxDistalDendrites + 1).toInt
-    segments = Array.fill(nSegments)(new DendriteSegment(column.loc, cell.distalDendrite))
-  } cell.distalDendrite.segments = segments
-
+    segment = new DendriteSegment(column.loc, cell.distalDendrite)
+    otherCell = region.getRandomCell(column, useLearnCell = false)
+    _ = segment.addConnection(otherCell, region.getRandomDistalPermanence)
+  } cell.distalDendrite.segments = Vector(segment)
 
 }

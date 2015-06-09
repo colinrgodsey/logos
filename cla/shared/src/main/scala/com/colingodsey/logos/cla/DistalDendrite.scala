@@ -11,12 +11,16 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
   var maxDutyCycle = 1.0
 
   //def averageActiveDuty = segments.iterator.map(_.activeDutyCycle.toDouble).sum / segments.length
-  def leastActiveDuty = segments.minBy(x => (x.activeDutyCycle.toDouble, math.random))
-  def mostActiveDuty = segments.maxBy(x => (x.activeDutyCycle.toDouble, math.random))
+  def leastActiveDuty = segments.minBy(x => (x.activeDutyCycle.toDouble, x.ordinal))
+  def mostActiveDuty = segments.maxBy(x => (x.activeDutyCycle.toDouble, x.ordinal))
+
+  def isFull = segments.length > maxDistalDendrites
+
+  def leastActive = leastActiveDuty
 
   def update(): Unit = {
     segments.foreach(_.update())
-    synapseFillPercent = segments.iterator.map(_.numConnections).sum / (segments.length * seededDistalConnections)
+    //synapseFillPercent = segments.iterator.map(_.numConnections).sum / (segments.length * seededDistalConnections)
 
     //TODO: min threshold?
     mostActive = //segments.toStream.sortBy(-_.activation).headOption
@@ -40,7 +44,7 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
 
     val mostPruned = /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
       segment.reinforce()
-      segment.pruneSynapses()
+      0//segment.pruneSynapses()
     } getOrElse 0
 
     leastPruned + mostPruned

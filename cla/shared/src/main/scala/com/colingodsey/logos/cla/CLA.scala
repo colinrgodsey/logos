@@ -13,6 +13,8 @@ Columns are sorted by reward and selected for action
 Some columns have no action (critical for idleness)
  */
 
+//TODO: dynamic thresholds?
+
 /*
 Future ideas:
   Neurotransmitter-like VecN 'cloud'. Eventual localized distribution of modulator values (VecN?)
@@ -31,7 +33,7 @@ object CLA {
       minOverlap: Int = 4,
 
       segmentThreshold: Int = 12,
-      seededDistalConnections: Int = 32,
+      seededDistalConnections: Int = 20,
       maxDistalDendrites: Int = 128,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
