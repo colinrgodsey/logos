@@ -22,6 +22,8 @@ final class RollingAverage(val max: Int,
 
 object RollingAverage {
   def apply(max: Int): RollingAverage = new RollingAverage(max)
+  def apply(max: Int, first: Double): RollingAverage =
+    new RollingAverage(max, average = first, count = 1)
 }
 /*
 final case class RollingAverage(val max: Int,
