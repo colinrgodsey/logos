@@ -11,6 +11,7 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
 
   var predictive = false
   private var _active = false
+  var activeForTicks = 0
 
   val distalDendrite = new DistalDendrite(column.loc)
   val ordinal = math.random
@@ -26,56 +27,54 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
     predictive = distalDendrite.active
   }
 
-  def leastPredictiveDutyCycle = distalDendrite.leastActiveDuty.activeDutyCycle
-  def mostPredictiveDutyCycle = distalDendrite.mostActiveDuty.activeDutyCycle
+  def leastPredictiveDutyCycle = distalDendrite.leastActiveDutyCycle
+  def mostPredictiveDutyCycle = distalDendrite.mostActiveDutyCycle
 
-  def deactivate(): Unit = {
+  def tickDown(): Unit = {
+    activeForTicks -= 1
+
+    if(activeForTicks <= 0) deactivate()
+  }
+
+  protected def deactivate(): Unit = {
     _active = false
     predictive = false
   }
 
-  def activate(): Unit = {
+  def activate(forTicks: Int): Unit = {
     _active = true
     predictive = false
+    activeForTicks = forTicks
   }
 
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
   def activationOrdinal =
-    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, 0.0)
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, math.random)
 
   def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
-  def seedDistal(n: Int): Unit = {
-    //TODO: only find semi active columns?
-    for {
-      i <- 0 until n
-      segment0 = randomSegment
-      segment = if(segment0.numConnections >= seededDistalConnections) randomSegment else segment0
-      otherCell = region.getRandomCell(column, useLearnCell = true)
-    } segment.addConnection(otherCell, region.getRandomDistalPermanence)
+  def fillSegment(segment: DendriteSegment, learningCells: Stream[Cell]): Unit = {
+    if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
+      val cell = learningCells.head
+      segment.addConnection(cell, getRandomDistalPermanence)
+      fillSegment(segment, learningCells.tail)
+    }
   }
 
   def addNewSegment(): Unit = {
     val segment = new DendriteSegment(loc, distalDendrite)
 
-    val predictedColumns = column.region.columns.filter(c => c.wasActive && c != cell.column)
+    val learningCells = column.region.getLearningCells(cell.column)
 
-    if(predictedColumns.isEmpty) return
+    if(learningCells.isEmpty) return
 
     distalDendrite.segments :+= segment
 
+    fillSegment(segment, learningCells)
+
     segment.update()
-    segment.updateDutyCycle()
-
-    for(_ <- 0 until (config.seededDistalConnections * 2)) {
-      val selected = predictedColumns((predictedColumns.length * math.random).toInt)
-
-      val cell = selected.learningCell
-
-      if(segment.numConnections < config.seededDistalConnections)
-        segment.addConnection(cell, region.getRandomDistalPermanence)
-    }
+    segment.updateDutyCycle(force = true)
   }
 
   def reinforceDistal(): Unit = {
@@ -85,16 +84,23 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
 
     val full = distalDendrite.isFull
 
+    //TODO: reinforce the next active one if this is full?
     if(!distalDendrite.active && !full) {
-      addNewSegment()
+      distalDendrite.mostActive match {
+        case Some(segment) if segment.numConnections < config.seededDistalConnections =>
+          fillSegment(segment, column.region.getLearningCells(column))
+        case _ =>
+          addNewSegment()
+      }
+
     } else if(full && distalDendrite.active) {
       val toRemove = distalDendrite.leastActiveDuty
 
-      distalDendrite.removeSegment(toRemove)
+      toRemove.foreach(distalDendrite.removeSegment(_))
     }
   }
 
   def activateIfPredicted(): Unit = {
-    if (predictive) activate() else deactivate()
+    if (predictive) activate(learningCellDuration) else tickDown()
   }
 }

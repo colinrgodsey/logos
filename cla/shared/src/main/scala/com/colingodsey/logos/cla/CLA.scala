@@ -20,6 +20,8 @@ Future ideas:
   Neurotransmitter-like VecN 'cloud'. Eventual localized distribution of modulator values (VecN?)
 
   Imagine a cloud of neurotransmitters spreading in a guassian way
+
+  How do we handle converging sequences? Why multiple distal dentrites?
  */
 object CLA {
   case class Config(
@@ -41,6 +43,7 @@ object CLA {
       connectionThreshold: Double = 0.2,
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
+      learningCellDuration: Int = 4, //in ticks
 
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 100,
@@ -50,6 +53,23 @@ object CLA {
     require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")
 
     val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()
+
+    def getRandomProximalPermanence = {
+      val s = connectionThreshold * 0.2 //10% variance
+      val n = (s * 2 * math.random) - s
+
+      //connectionThreshold / 2.0
+      connectionThreshold + n
+    }
+
+    def getRandomDistalPermanence = {
+      val s = connectionThreshold * 0.1 //10% variance
+      val n = (s * 2 * math.random) - s
+
+      //connectionThreshold / 2.0
+      //connectionThreshold + 0.2
+      connectionThreshold + n
+    }
   }
 
   val DefaultConfig = Config()

@@ -41,7 +41,7 @@ trait DutyCycle extends NeuralNode {
   }
 
   //TODO: data from parent, or inhibition radius?
-  def updateDutyCycle(): Unit = if(math.random < dutyCycleUpdateRatio) {
+  def updateDutyCycle(force: Boolean = false): Unit = if(math.random < dutyCycleUpdateRatio || force) {
     //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
 
     val maxDutyCycle = parent.maxDutyCycle

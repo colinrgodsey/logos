@@ -3,15 +3,7 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.collections.ExtraMath.randomNormal
 import com.colingodsey.logos.collections.RollingAverage
 
-import scala.collection.immutable.VectorBuilder
-import scala.concurrent.{Await, Future, ExecutionContext}
-import scala.concurrent.duration._
-
-
-
-
-
-
+import scala.concurrent.ExecutionContext
 
 class Region(implicit val config: CLA.Config,
     val ec: ExecutionContext = CLA.VM.newDefaultExecutionContext) extends DutyCycle.Booster { region =>
@@ -69,7 +61,7 @@ class Region(implicit val config: CLA.Config,
       val pred = if(column.wasPredicted) 1 else 0
       //val pred = column.predicationAverage.toDouble
 
-      (-column.overlap, /*-pred,*/ column.ordinal)
+      (-column.overlap, -column.activation,/*-pred,*/ column.ordinal)
     }
     val (topK, tail) = sorted.splitAt(desiredLocalActivity)
 
@@ -100,40 +92,13 @@ class Region(implicit val config: CLA.Config,
     sum.toDouble / filtered.length
   }
 
-  def seedDistalSynapses(): Unit = {
-    columns.foreach(_.seedDistalSynapses())
+  def getLearningCells: Stream[Cell] = {
+    columns.toStream.sortBy { c =>
+      (!c.wasPredicted, !c.wasActive, c.ordinal)
+    }.map(_.learningCell)
   }
 
-  def getRandomCell(refColumn: Column, useLearnCell: Boolean): NeuralNode = {
-    //TODO: variance based on inhibitionRadius?
-    //val columnSel = refColumn.loc + randomNormal(0.5) * columns.length
-    val columnSel = math.random * columns.length
-    //TODO: wrap on edges via ring, or cut off via a line?
+  def getLearningCells(c: Column): Stream[Cell]  =
+    getLearningCells.filter(_.column != c)
 
-    //TODO: ignore same column... or no?
-    if(columnSel < 0 || columnSel >= columns.length) getRandomCell(refColumn, useLearnCell)
-    else {
-      val column = columns(columnSel.toInt)
-
-      if (column == refColumn) getRandomCell(refColumn, useLearnCell)
-      else if(column.wasPredicted && useLearnCell) column.learningCell
-      else column.randomCell
-    }
-  }
-
-  def getRandomProximalPermanence = {
-    val s = connectionThreshold * 0.2 //10% variance
-    val n = (s * 2 * math.random) - s
-
-    connectionThreshold / 2.0
-    //connectionThreshold + n
-  }
-
-  def getRandomDistalPermanence = {
-    val s = connectionThreshold * 0.1 //10% variance
-    val n = (s * 2 * math.random) - s
-
-    connectionThreshold / 2.0
-    //connectionThreshold + n
-  }
 }

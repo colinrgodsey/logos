@@ -3,14 +3,18 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.collections.RollingAverage
 import com.colingodsey.logos.collections.ExtraMath.randomNormal
 
+trait ColumnX {
+
+}
+
 final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle { column =>
   import region.config
   import config._
 
   val cells = Array.fill(columnHeight)(new Cell(column))
   val predicationAverage = RollingAverage(dutyAverageFrames)
-  val activeDutyCycle = RollingAverage(dutyAverageFrames)
-  val overlapDutyCycle = RollingAverage(dutyAverageFrames)
+  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random)
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random)
 
   val uuid = math.random
 
@@ -73,7 +77,7 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
         def loc: CLA.Location = inputMap(idx)
       }
 
-      new NodeAndPermanence(node, region.getRandomProximalPermanence)
+      new NodeAndPermanence(node, getRandomProximalPermanence)
     })
 
     new DendriteSegment(loc, region, nodes.toArray.toIndexedSeq)
@@ -84,10 +88,10 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
 
   def neighborsIn(radius: CLA.Radius) = region.columnsNear(loc, radius).filter(_ != column)
 
-  override def updateDutyCycle(): Unit = {
+  override def updateDutyCycle(force: Boolean): Unit = {
     predicationAverage += predication
 
-    super[DutyCycle].updateDutyCycle()
+    super[DutyCycle].updateDutyCycle(force)
   }
 
   def boostPermanence(): Unit = proximalDendrite.boostPermanence()
@@ -110,9 +114,9 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
   }
 
   def leastPredictiveDutyCell =
-    cells.minBy(x => (x.leastPredictiveDutyCycle.toDouble, x.ordinal))
+    cells.minBy(x => (x.leastPredictiveDutyCycle, x.ordinal))
   def mostPredictiveDutyCell =
-    cells.maxBy(x => (x.mostPredictiveDutyCycle.toDouble, x.ordinal))
+    cells.maxBy(x => (x.mostPredictiveDutyCycle, x.ordinal))
 
   //active columns will 'tick' predictive state of cells
   //TODO: should this fire if active, or if overlap > minOverlap?
@@ -148,27 +152,17 @@ final class Column(val region: Region, val loc: CLA.Location) extends DutyCycle 
     Otherwise deactivate all.
     */
     if(!wasPredicted) {
-      cells.foreach(_.activate())
+      cells.foreach(_.activate(1))
     }
   } else {
     //deactivate all
-    cells.foreach(_.deactivate())
-    wasPredicted = false
+    cells.foreach(_.tickDown())
+    wasPredicted = cells.exists(_.active)
   }
 
   def activate(): Unit = {
     active = true
     updatePermanence()
   }
-
-  //TODO: seed favouring locality
-  //TODO: multiple connections to same cell?
-
-  def seedDistalSynapses(): Unit = for {
-    cell <- cells
-    segment = new DendriteSegment(column.loc, cell.distalDendrite)
-    otherCell = region.getRandomCell(column, useLearnCell = false)
-    _ = segment.addConnection(otherCell, region.getRandomDistalPermanence)
-  } cell.distalDendrite.segments = Vector(segment)
 
 }

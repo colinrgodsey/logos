@@ -1,5 +1,6 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.cla.CLA
 import com.colingodsey.logos.cla.encoders.ScalarEncoder
 import utest._
 
@@ -10,9 +11,11 @@ object CLATest extends TestSuite {
   implicit val config = CLA.DefaultConfig.copy(
     columnHeight = 32,
     //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
+    segmentThreshold = 8,
+    dutyAverageFrames = 100,
     inputWidth = 80, inputConnectionsPerColumn = 30,
-    desiredLocalActivity = 30,
-    regionWidth = 256, minOverlap = 6)
+    desiredLocalActivity = 10,
+    regionWidth = 256, minOverlap = 5)
 
   val sinSteps = 30
   val sinSteps2 = 70
@@ -31,9 +34,6 @@ object CLATest extends TestSuite {
 
     "run test" - {
       val region = new Region
-
-      region.seedDistalSynapses()
-
 
       for(i <- 0 until 10000) {
         val t = (i % sinSteps) / sinSteps.toDouble

@@ -16,8 +16,8 @@ final class DendriteSegment(
   var potentialActivation = 0
   var receptive = 0
 
-  val activeDutyCycle = RollingAverage(dutyAverageFrames)
-  val overlapDutyCycle = RollingAverage(dutyAverageFrames)
+  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random)
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random)
   //var sequenceSegment = false
 
   val ordinal = math.random
@@ -34,7 +34,10 @@ final class DendriteSegment(
 
   //TODO: min activation for boost?
   //def activationOrdinal = (overlap, activation, potentialActivation, ordinal)
-  def activationOrdinal = (overlap, activation.toDouble + potentialActivation.toDouble, 0.0, ordinal)
+
+  //as a 'tie-breaker', tend to favor the least active segments
+  //(produce new sequences instead of converging on a recently active one)
+  def activationOrdinal = (overlap, activation.toDouble/*activation.toDouble + potentialActivation.toDouble*/, 0.0, math.random)
 
   def update(): Unit = {
     var act = 0
@@ -67,7 +70,7 @@ final class DendriteSegment(
 
     if(active) boost = 0.0
 
-    updateDutyCycle()
+    updateDutyCycle()//force = active)
   }
 
   def dutyCycleUpdateRatio = config.segmentDutyCycleRatio

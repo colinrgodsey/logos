@@ -11,8 +11,11 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
   var maxDutyCycle = 1.0
 
   //def averageActiveDuty = segments.iterator.map(_.activeDutyCycle.toDouble).sum / segments.length
-  def leastActiveDuty = segments.minBy(x => (x.activeDutyCycle.toDouble, x.ordinal))
-  def mostActiveDuty = segments.maxBy(x => (x.activeDutyCycle.toDouble, x.ordinal))
+  def leastActiveDuty = if(segments.isEmpty) None else Some(segments.minBy(x => (x.activeDutyCycle.toDouble, x.ordinal)))
+  def mostActiveDuty = if(segments.isEmpty) None else Some(segments.maxBy(x => (x.activeDutyCycle.toDouble, x.ordinal)))
+
+  def leastActiveDutyCycle = leastActiveDuty.map(_.activeDutyCycle.toDouble) getOrElse 0.0
+  def mostActiveDutyCycle = mostActiveDuty.map(_.activeDutyCycle.toDouble) getOrElse 0.0
 
   def isFull = segments.length > maxDistalDendrites
 
@@ -29,7 +32,7 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
 
     active = segments.exists(_.active)
 
-    maxDutyCycle = mostActiveDuty.activeDutyCycle.toDouble
+    maxDutyCycle = mostActiveDutyCycle
   }
 
   def removeSegment(s: DendriteSegment): Unit = {
