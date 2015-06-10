@@ -53,10 +53,15 @@ trait SDR extends DutyCycle {
     node.disconnectOutput()
   }
 
-  def removeConnection(node: NeuralNode): Unit = if(connectedTo(node)) {
+  def removeConnection(node: NeuralNode): Boolean = if(connectedTo(node)) {
     connections = connections.filter(_.node != node)
     removeConnection0(node)
-  }
+
+    true
+  } else false
+
+  def removeAllConnections(): Unit =
+    connections.foreach(x => removeConnection(x.node))
 
   def pruneSynapses(): Int = if(needsPruning) {
     var pruned = 0

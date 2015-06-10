@@ -65,12 +65,16 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
 
     distalDendrite.segments :+= segment
 
-    for(_ <- 0 until config.seededDistalConnections) {
+    segment.update()
+    segment.updateDutyCycle()
+
+    for(_ <- 0 until (config.seededDistalConnections * 2)) {
       val selected = predictedColumns((predictedColumns.length * math.random).toInt)
 
       val cell = selected.learningCell
 
-      segment.addConnection(cell, region.getRandomDistalPermanence)
+      if(segment.numConnections < config.seededDistalConnections)
+        segment.addConnection(cell, region.getRandomDistalPermanence)
     }
   }
 
@@ -83,11 +87,10 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
 
     if(!distalDendrite.active && !full) {
       addNewSegment()
-    } else if(full) {
+    } else if(full && distalDendrite.active) {
       val toRemove = distalDendrite.leastActiveDuty
 
-      distalDendrite.segments =
-        distalDendrite.segments.filter(_ != toRemove)
+      distalDendrite.removeSegment(toRemove)
     }
   }
 

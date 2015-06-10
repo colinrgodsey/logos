@@ -32,6 +32,16 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
     maxDutyCycle = mostActiveDuty.activeDutyCycle.toDouble
   }
 
+  def removeSegment(s: DendriteSegment): Unit = {
+    var found = false
+
+    segments = segments filter {
+      case a if a == s =>
+        s.removeAllConnections()
+        false
+      case _ => true
+    }
+  }
 
   //TODO: min activation?
   def reinforceAndPrune(): Int = {

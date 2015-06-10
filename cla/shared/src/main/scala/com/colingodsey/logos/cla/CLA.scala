@@ -43,7 +43,7 @@ object CLA {
       permanenceDec: Double = 0.05,
 
       boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 40,
+      dutyAverageFrames: Int = 100,
 
       specificNumWorkers: Option[Int] = None
   ) {
