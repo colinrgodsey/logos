@@ -22,7 +22,10 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
   def leastActive = leastActiveDuty
 
   def update(): Unit = {
-    segments.foreach(_.update())
+    segments.foreach { s =>
+      s.update()
+      s.updateDutyCycle()
+    }
     //synapseFillPercent = segments.iterator.map(_.numConnections).sum / (segments.length * seededDistalConnections)
 
     //TODO: min threshold?

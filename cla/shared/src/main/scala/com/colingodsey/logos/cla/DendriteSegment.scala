@@ -11,6 +11,7 @@ final class DendriteSegment(
     implicit val config: CLA.Config) extends SDR {
   import config._
 
+  var wasActive = false
   var active = false
   var activation = 0
   var potentialActivation = 0
@@ -37,7 +38,7 @@ final class DendriteSegment(
 
   //as a 'tie-breaker', tend to favor the least active segments
   //(produce new sequences instead of converging on a recently active one)
-  def activationOrdinal = (overlap, activation.toDouble/*activation.toDouble + potentialActivation.toDouble*/, 0.0, math.random)
+  def activationOrdinal = (overlap, activation.toDouble, potentialActivation.toDouble, math.random)
 
   def update(): Unit = {
     var act = 0
@@ -66,11 +67,10 @@ final class DendriteSegment(
     receptive = rec
     potentialActivation = potAct
 
+    wasActive = active
     active = activation >= activationThreshold
 
     if(active) boost = 0.0
-
-    updateDutyCycle()//force = active)
   }
 
   def dutyCycleUpdateRatio = config.segmentDutyCycleRatio

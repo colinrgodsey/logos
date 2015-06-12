@@ -33,7 +33,7 @@ object CLATest extends TestSuite {
     val encoder = new ScalarEncoder(config.inputWidth, 8)
 
     "run test" - {
-      val region = new Region
+      val region = new L3Region
 
       for(i <- 0 until 10000) {
         val t = (i % sinSteps) / sinSteps.toDouble

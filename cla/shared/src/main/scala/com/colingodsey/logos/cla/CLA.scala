@@ -43,7 +43,7 @@ object CLA {
       connectionThreshold: Double = 0.2,
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
-      learningCellDuration: Int = 4, //in ticks
+      learningCellDuration: Int = 1,//4, //in ticks
 
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 100,
