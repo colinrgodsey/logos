@@ -7,7 +7,8 @@ import com.colingodsey.logos.collections.RollingAverage
 final class DendriteSegment(
     val loc: CLA.Location,
     val parent: DutyCycle.Booster,
-    synapses: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty)(
+    synapses: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty,
+    activationThresholdOpt: Option[Int] = None)(
     implicit val config: CLA.Config) extends SDR {
   import config._
 
@@ -79,7 +80,7 @@ final class DendriteSegment(
   def permanenceInc: Double = config.permanenceInc
   def permanenceDec: Double = config.permanenceDec
   def boostIncr: Double = config.boostIncr
-  def activationThreshold: Int = config.segmentThreshold
+  val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
 
   override def minThreshold = activationThreshold
 }

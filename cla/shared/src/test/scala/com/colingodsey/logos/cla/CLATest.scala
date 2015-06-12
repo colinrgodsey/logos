@@ -11,7 +11,7 @@ object CLATest extends TestSuite {
   implicit val config = CLA.DefaultConfig.copy(
     columnHeight = 32,
     //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
-    segmentThreshold = 8,
+    //segmentThreshold = 8,
     dutyAverageFrames = 100,
     inputWidth = 80, inputConnectionsPerColumn = 30,
     desiredLocalActivity = 10,
@@ -35,7 +35,7 @@ object CLATest extends TestSuite {
     "run test" - {
       val region = new L3Region
 
-      for(i <- 0 until 10000) {
+      for(i <- 0 until 1000) {
         val t = (i % sinSteps) / sinSteps.toDouble
         val t2 = (i % sinSteps2) / sinSteps2.toDouble
         val t3 = (i % sinSteps3) / sinSteps3.toDouble
