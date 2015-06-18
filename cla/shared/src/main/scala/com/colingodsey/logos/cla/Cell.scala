@@ -4,16 +4,18 @@ import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
-final class Cell(val column: Column) extends NeuralNode { cell =>
+final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   import column.layer
   import layer.config
   import config._
+
+  type Location = layer.Location
 
   var predictive = false
   private var _active = false
   var activeForTicks = 0
 
-  val distalDendrite = new DistalDendrite(column.loc)
+  val distalDendrite = new DistalDendrite[Location](column.loc)
   val ordinal = math.random
 
   def active = _active
@@ -63,7 +65,7 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
   }
 
   def addNewSegment(): Unit = {
-    val segment = new DendriteSegment(loc, distalDendrite)
+    val segment = new DendriteSegment(distalDendrite)
 
     val learningCells = column.layer.getLearningCells(cell.column)
 
@@ -80,7 +82,7 @@ final class Cell(val column: Column) extends NeuralNode { cell =>
   def reinforceDistal(): Unit = {
     //distalDendrite.reinforce()
 
-    val pruned = distalDendrite.reinforceAndPrune()
+    val pruned = distalDendrite.reinforce()
 
     val full = distalDendrite.isFull
 

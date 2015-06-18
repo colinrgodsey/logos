@@ -5,11 +5,10 @@ import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
-    val loc: CLA.Location,
     val parent: DutyCycle.Booster,
     synapses: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty,
     activationThresholdOpt: Option[Int] = None)(
-    implicit val config: CLA.Config) extends SDR {
+    implicit val config: CLA.Config[_]) extends SDR {
   import config._
 
   var wasActive = false
@@ -26,11 +25,14 @@ final class DendriteSegment(
 
   protected var connections = synapses.toArray
 
-  def receptiveRadius = {
+  def receptiveRadius[L](center: L)(implicit cfg: CLA.Config[L]): Double = {
+    val topology = cfg.topology
     connections.iterator.map {
-      case np if np.p > connectionThreshold =>
-        math.abs(np.node.loc - loc)
-      case _ => 0
+      case NodeAndPermanence(node: topology.LocalNeuralNode, p) if p > connectionThreshold =>
+        topology.distance(center, node.loc)
+      case NodeAndPermanence(node: topology.LocalNeuralNode, _) =>
+        0.0
+      case x => sys.error("unexpected non-locale synpase " + x)
     }.max
   }
 

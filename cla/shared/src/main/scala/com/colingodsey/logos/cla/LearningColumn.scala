@@ -11,21 +11,81 @@ trait MiniColumn extends NeuralNode { column =>
   var active: Boolean
 
   //def input: NeuralNode
-  val layer: SequenceLayer
+  val layer: Layer
 
   def update(): Unit
 
   def ordinal: Double
 }
 
-trait Column extends MiniColumn {
-  def receptiveFieldRadius: Double
+trait LearningColumn extends MiniColumn {
+  //def receptiveFieldRadius: Double
+  val layer: SequenceLayer
+
+  def loc: layer.Location
 }
 
+final class L4Column[L](val layer: L4Layer[L], val loc: L,
+    val inputSegment: DendriteSegment) extends LearningColumn { column =>
+  import layer.config
+  import config._
 
+  //val cell = new Cell(column)
+  val ordinal = math.random
 
-final class L3Column(val layer: SequenceLayer, val loc: CLA.Location,
-    val inputSegment: DendriteSegment) extends Column { column =>
+  var wasActive: Boolean = false
+  var wasPredicted: Boolean = false
+  var active: Boolean = false
+
+  def update(): Unit = {
+    wasActive = active
+
+  }
+
+  def checkFillSegment(segment: DistalDendrite[L], learningCells: => Stream[Cell]): Unit = {
+    val full = segment.isFull
+
+    if(!segment.active && !full) {
+      segment.mostActive match {
+        case Some(segment) if segment.numConnections < config.seededDistalConnections =>
+          fillSegment(segment, learningCells)
+        case _ =>
+          addNewSegment(segment, learningCells)
+      }
+
+    } else if(full && segment.active) {
+      val toRemove = segment.leastActiveDuty
+
+      toRemove.foreach(segment.removeSegment(_))
+    }
+  }
+
+  protected def fillSegment(segment: DendriteSegment, learningCells: Stream[Cell]): Unit = {
+    if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
+      val cell = learningCells.head
+      segment.addConnection(cell, getRandomDistalPermanence)
+      fillSegment(segment, learningCells.tail)
+    }
+  }
+
+  protected def addNewSegment(dendrite: DistalDendrite[L], getLearningCells: => Stream[Cell]): Unit = {
+    val segment = new DendriteSegment(dendrite)
+
+    val learningCells = getLearningCells
+
+    if(learningCells.isEmpty) return
+
+    dendrite.segments :+= segment
+
+    fillSegment(segment, learningCells)
+
+    segment.update()
+    segment.updateDutyCycle(force = true)
+  }
+}
+
+final class L3Column[L](val layer: L3Layer[L], val loc: L,
+    val inputSegment: DendriteSegment) extends LearningColumn { column =>
   import layer.config
   import config._
 
@@ -61,20 +121,7 @@ final class L3Column(val layer: SequenceLayer, val loc: CLA.Location,
   }
 
   //def receptiveFieldSize = proximalDendrite.receptive
-  def receptiveFieldRadius = inputSegment.receptiveRadius
-
-  def neighborsIn(radius: CLA.Radius) = ??? //layer.columnsNear(loc, radius).filter(_ != column)
-
-  //only for strict inhibition radius
-  /*def spatialPooler(): Unit = {
-    val sorted = neighborsIn(layer.inhibitionRadius).toStream.
-        map(_.overlap).filter(_ >= minOverlap).sortBy(-_)
-
-    val min = if(sorted.isEmpty) minOverlap
-    else sorted.take(desiredLocalActivity).min
-
-    if(overlap >= min) activate()
-  }*/
+  //def receptiveFieldRadius = inputSegment.receptiveRadius(loc)
 
   def predication = learningCell.activationOrdinal._1
 

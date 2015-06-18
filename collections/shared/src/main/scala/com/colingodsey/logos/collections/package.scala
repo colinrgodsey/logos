@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 
 import scala.collection.IndexedSeqOptimized
+import scala.util.Random
 
 package object collections {
 	object IVec3 {
@@ -18,6 +19,11 @@ package object collections {
 
 		override lazy val hashCode = (x, y, z).hashCode
 	}
+
+  implicit class RandomExtension(val r: Random) extends AnyVal {
+    def randomNormal(v: Double = 1.0): Double = ExtraMath.randomNormal(v, r)
+    def randomNormal: Double = randomNormal()
+  }
 
 	implicit def IPoint3DToPoint3D(x: IVec3) = x.toVec3
 

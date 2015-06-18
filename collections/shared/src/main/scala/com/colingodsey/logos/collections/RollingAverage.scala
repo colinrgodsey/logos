@@ -15,6 +15,8 @@ final class RollingAverage(val max: Int,
 
     average = newAverage
     count = newCount
+
+    this
   }
 
   @inline def toDouble = average

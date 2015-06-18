@@ -37,4 +37,11 @@ lazy val root = crossProject.in(file("."))
 lazy val rootJVM = root.jvm
 lazy val rootJs = root.js
 
+lazy val claUI = project.in(file("cla-ui"))
+    .settings(name := "logos-cla-ui")
+    .enablePlugins(ScalaJSPlugin)
+    .settings(Logos.commonSettings: _*)
+    .dependsOn(claJs)
+    .settings(Logos.claUISettings: _*)
+
 Logos.buildSettings

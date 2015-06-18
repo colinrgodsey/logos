@@ -220,7 +220,8 @@ object Vec2 extends VecCompanion[Vec2] with VecNumeric[Vec2] {
 
   def dimensions: Dimensions = Dimensions.Two
 
-  def random = (Vec2(math.random, math.random) * 2 - Vec2.one).normal
+  def randomNonNormal = Vec2(math.random * 2 - 1, math.random * 2 - 1)
+  def random = randomNonNormal.normal
 
   def apply(x: Vec): Vec2 = x match {
     case x: Vec2 => x

@@ -1,7 +1,8 @@
 package com.colingodsey.logos.cla
 
 //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
-final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Config) extends NeuralNode with DutyCycle.Booster {
+final class DistalDendrite[L](
+    val loc: L)(implicit val config: CLA.Config[L]) extends NeuralNode with DutyCycle.Booster {
   import config._
   
   var active = false
@@ -50,19 +51,5 @@ final class DistalDendrite(val loc: CLA.Location)(implicit val config: CLA.Confi
   }
 
   //TODO: min activation?
-  def reinforceAndPrune(): Int = {
-    //segments.foreach(_.reinforce())
-    val max = mostActive
-
-    /*leastActiveDuty.reinforce()
-    val leastPruned = leastActiveDuty.pruneSynapses()*/
-    val leastPruned = 0
-
-    val mostPruned = /*if(max.activation > 4/*minActivation*/) */max.map { segment =>
-      segment.reinforce()
-      0//segment.pruneSynapses()
-    } getOrElse 0
-
-    leastPruned + mostPruned
-  }
+  def reinforce(): Unit = mostActive.foreach(_.reinforce())
 }

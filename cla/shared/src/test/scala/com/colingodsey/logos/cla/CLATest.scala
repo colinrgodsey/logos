@@ -13,6 +13,7 @@ object CLATest extends TestSuite {
     //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
     //segmentThreshold = 8,
     dutyAverageFrames = 100,
+    dynamicInhibitionRadius = true,
     inputWidth = 80, inputConnectionsPerColumn = 30,
     desiredLocalActivity = 10,
     regionWidth = 256, minOverlap = 5)
@@ -50,23 +51,24 @@ object CLATest extends TestSuite {
 
         region.update(encoder.encode(r))
         println("\t\t\t" + encoder.encode(r))
-        println(region.anomalyScore)
+        //println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius)
+        println(region.l3Layer.anomalyScore, region.inputLayer.averageReceptiveFieldRadius)
 
       }
-      println(region.anomalyScore)
-      println(region.columns.filter(_.active).mkString("\n"))
-      println(region.columns.map(_.boost))
-      println(region.columns.map(_.overlap))
+      println(region.l3Layer.anomalyScore)
+      println(region.l3Layer.columns.filter(_.active).mkString("\n"))
+      println(region.l3Layer.columns.map(_.boost))
+      println(region.l3Layer.columns.map(_.overlap))
 
       region.update(encoder.encode(math.random))
-      println(region.anomalyScore)
-      println(region.columns.filter(_.active).mkString("\n"))
-      println(region.columns.map(_.boost))
-      println(region.columns.map(_.overlap))
-      println(region.columns.map(_.activeDutyCycle.toDouble))
-      println(region.columns.map(_.overlapDutyCycle.toDouble))
-      println(region.inhibitionRadius)
-      println(region.averageReceptiveFieldRadius)
+      println(region.l3Layer.anomalyScore)
+      println(region.l3Layer.columns.filter(_.active).mkString("\n"))
+      println(region.l3Layer.columns.map(_.boost))
+      println(region.l3Layer.columns.map(_.overlap))
+      println(region.l3Layer.columns.map(_.activeDutyCycle.toDouble))
+      println(region.l3Layer.columns.map(_.overlapDutyCycle.toDouble))
+      println(region.l3Layer.inhibitionRadius)
+      println(region.inputLayer.averageReceptiveFieldRadius)
     }
   }
 

@@ -4,6 +4,8 @@ import sbt._
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import ScalaJSPlugin.autoImport._
 
+import com.lihaoyi.workbench.Plugin._
+
 object Logos {
   def buildSettings = Seq(
     name := "logos",
@@ -47,5 +49,20 @@ object Logos {
   def commonSettings = Seq(
     libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
     testFrameworks += new TestFramework("utest.runner.Framework")
+  )
+
+  def claUISettings = workbenchSettings ++ Seq(
+    libraryDependencies += "be.doeraene" %%% "scalajs-jquery" % "0.8.0",
+    libraryDependencies += "be.doeraene" %%% "scalajs-pickling-core" % "0.4.0",
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.7.0",
+
+    skip in packageJSDependencies := false,
+    bootSnippet := "com.colingodsey.logos.cla.ui.UI().main();",
+
+    refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile),
+    //updateBrowsers <<= updateBrowsers.triggeredBy(fastOptJS in Compile),
+
+    jsDependencies += "org.webjars" % "flot" % "0.8.3-1" / "jquery.flot.js",
+    jsDependencies += "org.webjars" % "chartjs" % "1.0.2" / "Chart.min.js"
   )
 }

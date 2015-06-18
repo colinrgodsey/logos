@@ -4,6 +4,10 @@ import scala.concurrent.ExecutionContext
 
 import DefaultShadow._
 
+import scala.util.Random
+
+import com.colingodsey.logos.collections._
+
 /*
 reinforcement learning
 
@@ -21,18 +25,19 @@ Future ideas:
 
   Imagine a cloud of neurotransmitters spreading in a guassian way
 
-  How do we handle converging sequences? Why multiple distal dentrites?
  */
 object CLA {
-  case class Config(
+  case class Config[L](
       regionWidth: Int = 2048,
       desiredLocalActivity: Int = 40,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 128,
-      inputConnectionsPerColumn: Int = 64,
-      minOverlap: Int = 4,
+      inputConnectionsPerColumn: Int = 20,
+      inputRangePercent: Double = 0.3,
+      inputRangeSpreadPercent: Double = 0.65,
+      minOverlap: Int = 8,
 
       segmentThreshold: Int = 12,
       seededDistalConnections: Int = 20,
@@ -48,11 +53,19 @@ object CLA {
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 100,
 
+      topology: Topology[L] = OneDimensionalTopology,
+      dynamicInhibitionRadius: Boolean = false,
+      dynamicInhibitionRadiusScale: Double = 2.0,
+
       specificNumWorkers: Option[Int] = None
   ) {
     require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")
 
     val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()
+    val inputRange = (inputWidth * inputRangePercent).toInt
+    val inputRangeRadius = inputRangeSpreadPercent * inputWidth / 2.0
+
+    implicit val _topology = topology
 
     def getRandomProximalPermanence = {
       val s = connectionThreshold * 0.2 //10% variance
@@ -70,6 +83,8 @@ object CLA {
       //connectionThreshold + 0.2
       connectionThreshold + n
     }
+    
+    val numColumns = math.pow(regionWidth, topology.dims).toInt
   }
 
   val DefaultConfig = Config()
@@ -80,9 +95,91 @@ object CLA {
     def toSeq: Seq[Boolean]
   }
 
-  type Location = Int
+  trait Topology[L] {
+    type Location = L
 
-  type Radius = Double
+    def locationsNear(loc: Location, rad: Double): Iterator[Location]
+    def distance(a: Location, b: Location)(implicit cfg: CLA.Config[L]): Double
+    def dims: Int
+    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int
+    def columnLocationFor(idx: Int): Location
+    def indexFor(loc: Location, width: Int): Int
+    def scale(loc: Location, s: Double): Location
+
+    def columnIndexesNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Int] =
+      locationsNear(loc, rad) map columnIndexFor
+
+    def randomLocationsNear(loc: Location, rad: Double): Stream[Location] = {
+      val seq = locationsNear(loc, rad).toIndexedSeq
+
+      seq.sortBy(_ => math.random).toStream
+    }
+
+    def uniqueNormalizedLocations(loc: Location, rad: Double): Stream[Location] = {
+      def take(stream: Stream[Location], gathered: Set[Location] = Set.empty
+            ): Stream[Location] = stream.headOption match {
+        case Some(l) if gathered(l) => take(stream.tail, gathered)
+        case Some(l) => l #:: take(stream.tail, gathered + l)
+        case None => sys.error("no more... somehow ")
+      }
+
+      take(normalizedRandomLocations(loc, rad))
+    }
+
+    def normalizedRandomLocations(loc: Location, rad: Double,
+      r: Random = Random): Stream[Location]
+
+    def randomLocationNear(loc: Location, rad: Double): Location =
+      randomLocationsNear(loc, rad).head
+
+    trait LocalNeuralNode extends NeuralNode {
+      def loc: Location
+    }
+  }
+
+  case object OneDimensionalTopology extends Topology[Int] {
+    def locationsNear(loc: Location, rad: Double): Iterator[Location] = {
+      val min = (loc - rad).toInt
+      val max = (loc + rad).toInt
+
+      (min to max).iterator
+    }
+
+    def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double = {
+      var d = math.abs(a - b).toDouble
+
+      while(d > cfg.regionWidth / 2.0) d -= cfg.regionWidth / 2.0
+
+      d
+    }
+
+    def dims = 1
+
+    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[Int]): Int = {
+      indexFor(loc, cfg.regionWidth)
+    }
+
+    def indexFor(loc: Location, width: Int): Int = {
+      var x = loc
+
+      //yeah, im a bad ass. I know it.
+      while(x < 0) x += width
+      while(x >= width) x -= width
+
+      x
+    }
+
+    def columnLocationFor(idx: Int): Location = idx
+
+    def scale(loc: Location, s: Double): Location = (loc * s).toInt
+
+    //1st standard deviation. 70% within rad
+    def normalizedRandomLocations(loc: Location, rad: Double, r: Random): Stream[Location] = {
+      val x: Location = (r.randomNormal * rad + loc).toInt
+
+      x #:: normalizedRandomLocations(loc, rad)
+    }
+  }
 
   private object _VM {
     //shadow from on high
@@ -111,15 +208,20 @@ trait NeuralNode {
 
   def active: Boolean
 
-  def loc: CLA.Location
-
   def numOutputs = _numOutputs
 
   def connectOutput(): Unit = _numOutputs += 1
   def disconnectOutput(): Unit = _numOutputs -= 1
 }
 
-final class NodeAndPermanence(var node: NeuralNode, var p: Double)
+final class NodeAndPermanence(val node: NeuralNode, var p: Double)
+
+object NodeAndPermanence {
+  def unapply(x: Any): Option[(NeuralNode, Double)] = x match {
+    case x: NodeAndPermanence => Some(x.node, x.p)
+    case _ => None
+  }
+}
 
 
 
