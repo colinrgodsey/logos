@@ -17,13 +17,13 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
   protected def createSegment(idx: Int) = {
     val columnLoc = topology.columnLocationFor(idx)
-    val inputColumnLoc = topology.columnLocationFor(idx / numColumns * inputWidth)
+    val inputColumnLoc = topology.scale(columnLoc, inputWidth / numColumns.toDouble)
 
     val inputMap: IndexedSeq[Int] =
       topology.uniqueNormalizedLocations(inputColumnLoc, inputRangeRadius).
         take(inputConnectionsPerColumn).
         map(topology.indexFor(_, inputWidth)).toArray.toIndexedSeq
-
+println(inputColumnLoc, inputMap, inputWidth, idx, columnLoc)
     val nodes = inputMap.map { iidx =>
       val scaledIdx = (iidx.toDouble / inputWidth * numColumns).toInt
       val node: NeuralNode = new topology.LocalNeuralNode {
@@ -77,14 +77,17 @@ class InputSDR[L](implicit val config: CLA.Config[L],
     val min = if(sorted.isEmpty) minOverlap
     else sorted.take(desiredLocalActivity).min
 
-    segment.active = segment.overlap >= min
+    segment.active = {
+      val o = segment.overlap
+      o >= min && o > 0
+    }
   }
 
   protected def spatialPooler(): Unit = {
     //clear activation state and update input
     segments.foreach(_.update())
 
-    if(dynamicInhibitionRadius) {
+    if(dynamicInhibitionRadius && inhibitionRadius < (regionWidth / 2)) {
       for(i <- 0 until segments.length) {
         val seg = segments(i)
         val loc = topology.columnLocationFor(i)

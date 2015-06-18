@@ -13,8 +13,8 @@ object CLATest extends TestSuite {
     //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
     //segmentThreshold = 8,
     dutyAverageFrames = 100,
-    dynamicInhibitionRadius = true,
-    inputWidth = 80, inputConnectionsPerColumn = 30,
+    dynamicInhibitionRadius = false,
+    inputWidth = 80, inputConnectionsPerColumn = 20,
     desiredLocalActivity = 10,
     regionWidth = 256, minOverlap = 5)
 
@@ -52,7 +52,7 @@ object CLATest extends TestSuite {
         region.update(encoder.encode(r))
         println("\t\t\t" + encoder.encode(r))
         //println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius)
-        println(region.l3Layer.anomalyScore, region.inputLayer.averageReceptiveFieldRadius)
+        println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius, region.inputLayer.averageReceptiveFieldRadius)
 
       }
       println(region.l3Layer.anomalyScore)
