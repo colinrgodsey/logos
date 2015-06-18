@@ -34,9 +34,9 @@ object CLA {
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 128,
-      inputConnectionsPerColumn: Int = 20,
-      //inputRangePercent: Double = 0.3,
-      inputRangeSpreadPercent: Double = 0.25,
+      //inputConnectionsPerColumn: Int = 20,
+      inputRangePercent: Double = 0.1,
+      inputRangeSpreadPercent: Double = 0.15,
       minOverlap: Int = 8,
 
       segmentThreshold: Int = 12,
@@ -55,10 +55,11 @@ object CLA {
 
       topology: Topology[L] = OneDimensionalTopology,
       dynamicInhibitionRadius: Boolean = false,
-      dynamicInhibitionRadiusScale: Double = 0.2,
+      dynamicInhibitionRadiusScale: Double = 0.1,
 
       specificNumWorkers: Option[Int] = None
   ) {
+    val inputConnectionsPerColumn = (inputWidth * inputRangeSpreadPercent).toInt
     require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")
 
     val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()

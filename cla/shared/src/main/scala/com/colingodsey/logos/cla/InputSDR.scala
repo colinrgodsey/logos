@@ -23,7 +23,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
       topology.uniqueNormalizedLocations(inputColumnLoc, inputRangeRadius).
         take(inputConnectionsPerColumn).
         map(topology.indexFor(_, inputWidth)).toArray.toIndexedSeq
-println(inputColumnLoc, inputMap, inputWidth, idx, columnLoc)
+
     val nodes = inputMap.map { iidx =>
       val scaledIdx = (iidx.toDouble / inputWidth * numColumns).toInt
       val node: NeuralNode = new topology.LocalNeuralNode {
@@ -72,9 +72,9 @@ println(inputColumnLoc, inputMap, inputWidth, idx, columnLoc)
 
   def localSpatialPooler(segment: DendriteSegment, loc: topology.Location): Unit = {
     val sorted = neighborsIn(loc, inhibitionRadius).toStream.
-        map(_.overlap).filter(_ >= minOverlap).sortBy(-_)
+        map(_.overlap).filter(_ > 0).sortBy(-_)
 
-    val min = if(sorted.isEmpty) minOverlap
+    val min = if(sorted.isEmpty) 0
     else sorted.take(desiredLocalActivity).min
 
     segment.active = {
@@ -103,11 +103,10 @@ println(inputColumnLoc, inputMap, inputWidth, idx, columnLoc)
       //activated top columns within our inhibition radius
       tail.foreach(_.active = false)
       topK.foreach(x => x.active = x.overlap > 0) //only active inputs
-
-      //update rolling averages
-      //columns.foreach(_.updateDutyCycle())
-      VM.distributedExec(regionWidth / numWorkers, segments)(_.updateDutyCycle(force = true))
     }
+
+    //update rolling averages
+    VM.distributedExec(regionWidth / numWorkers, segments)(_.updateDutyCycle(force = true))
 
     maxDutyCycle = segments.maxBy(_.activeDutyCycle.toDouble).activeDutyCycle.toDouble
   }

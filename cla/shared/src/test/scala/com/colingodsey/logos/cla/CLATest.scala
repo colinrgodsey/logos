@@ -13,10 +13,10 @@ object CLATest extends TestSuite {
     //segmentThreshold = 8, seededDistalConnections = 20, maxDistalDendrites = 32,
     //segmentThreshold = 8,
     dutyAverageFrames = 100,
-    dynamicInhibitionRadius = false,
-    inputWidth = 80, inputConnectionsPerColumn = 20,
+    dynamicInhibitionRadius = true,
+    inputWidth = 80, //inputConnectionsPerColumn = 20,
     desiredLocalActivity = 10,
-    regionWidth = 256, minOverlap = 5)
+    regionWidth = 256, minOverlap = 6)
 
   val sinSteps = 30
   val sinSteps2 = 70
