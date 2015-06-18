@@ -51,11 +51,11 @@ object CLA {
       learningCellDuration: Int = 1,//4, //in ticks
 
       boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 100,
+      dutyAverageFrames: Int = 20,
 
       topology: Topology[L] = OneDimensionalTopology,
       dynamicInhibitionRadius: Boolean = false,
-      dynamicInhibitionRadiusScale: Double = 0.1,
+      dynamicInhibitionRadiusScale: Double = 0.5,
 
       specificNumWorkers: Option[Int] = None
   ) {

@@ -46,8 +46,9 @@ object CLATest extends TestSuite {
         val s3 = math.sin(t3 * math.Pi * 2) / 2.0 + 0.5
 
         //val r = s * s2
-        val r = if(i < 5000 || true) (s + s2) / 2.0
-        else (s + s2 + s3) / 3.0
+        /*val r = if(i < 5000 || true) (s + s2) / 2.0
+        else (s + s2 + s3) / 3.0*/
+        val r = s
 
         region.update(encoder.encode(r))
         println("\t\t\t" + encoder.encode(r))

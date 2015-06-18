@@ -45,7 +45,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
     spatialPooler()
 
-    inhibitionRadiusAverage += averageReceptiveFieldRadius * regionWidth / inputWidth * dynamicInhibitionRadiusScale
+    inhibitionRadiusAverage += averageReceptiveFieldRadius * dynamicInhibitionRadiusScale
   }
 
   def inhibitionRadius: Double = math.max(inhibitionRadiusAverage.toDouble, 3)
