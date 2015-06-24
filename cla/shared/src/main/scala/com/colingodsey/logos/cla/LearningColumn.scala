@@ -41,7 +41,7 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
     wasActive = active
 
   }
-
+/*
   def checkFillSegment(segment: DistalDendrite[L], learningCells: => Stream[Cell]): Unit = {
     val full = segment.isFull
 
@@ -81,7 +81,7 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
 
     segment.update()
     segment.updateDutyCycle(force = true)
-  }
+  }*/
 }
 
 final class L3Column[L](val layer: L3Layer[L], val loc: L,
@@ -135,8 +135,30 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    //TOD: this is breaking consistency. updates happening while reffing other selectedLearningCell
     selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
+  }
+
+  //TODO: learning cell and sequence segments
+  def temporalPostPooler(): Unit = {
+    if (active) {
+      cells.foreach(_.activateIfPredicted())
+
+      wasPredicted = cells.exists(_.active)
+
+      /*
+    if none active from prediction, activate all
+    for our 'context-less' activation.
+    Otherwise deactivate all.
+    */
+      if (!wasPredicted) {
+        cells.foreach(_.activate(1))
+      }
+    } else {
+      //deactivate all
+      cells.foreach(_.tickDown())
+      wasPredicted = cells.exists(_.active)
+    }
+
 
     val hasPredictive = cells.exists(_.predictive)
 
@@ -150,26 +172,6 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
       //only reinforce the 'learning cell' here (max predication)
       learningCell.reinforceDistal()
     }
-  }
-
-  //TODO: learning cell and sequence segments
-  def temporalPostPooler(): Unit = if(active) {
-    cells.foreach(_.activateIfPredicted())
-
-    wasPredicted = cells.exists(_.active)
-
-    /*
-    if none active from prediction, activate all
-    for our 'context-less' activation.
-    Otherwise deactivate all.
-    */
-    if(!wasPredicted) {
-      cells.foreach(_.activate(1))
-    }
-  } else {
-    //deactivate all
-    cells.foreach(_.tickDown())
-    wasPredicted = cells.exists(_.active)
   }
 
   def update(): Unit = {
