@@ -4,12 +4,16 @@ import com.colingodsey.logos.collections.RollingAverage
 
 import scala.concurrent.ExecutionContext
 
-class InputSDR[L](implicit val config: CLA.Config[L],
+class InputSDR[L](val scale: Double = 1.0)(implicit val config: CLA.Config[L],
     ec: ExecutionContext) extends DutyCycle.Booster { inputLayer =>
   import com.colingodsey.logos.cla.CLA._
   import config._
 
-  val segments = (for(i <- 0 until numColumns) yield createSegment(i)).toArray
+  val inputConnectionsPerColumn = (config.inputConnectionsPerColumn * scale).toInt
+  val inputRangeRadius = (config.inputRangeRadius * scale).toInt
+  val width = (config.numColumns * scale).toInt
+
+  val segments = (for(i <- 0 until width) yield createSegment(i)).toArray
   val currentInput = Array.fill(inputWidth)(false)
   val inhibitionRadiusAverage = RollingAverage(dutyAverageFrames) += regionWidth
 

@@ -63,21 +63,21 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
   }
 
   def preUpdate(): Unit = {
+    wasActive = active
+
+    if(inputSegment.active) activeCount += 1
+
+    if(wasPredicted) activeCount = 0
+  }
+
+  def postUpdate(): Unit = {
     learnedTransitions.foreach(_._2.update())
 
     wasPredicted = learnedTransitions.exists {
       case (c, s) => c.active && s.active
     }
 
-  }
-
-  def postUpdate(): Unit = {
-    wasActive = active
-
-    if(inputSegment.active) activeCount += 1
-
-    if(wasPredicted) activeCount = 0
-    else learnTransition()
+    if(!wasPredicted) learnTransition()
   }
 }
 
