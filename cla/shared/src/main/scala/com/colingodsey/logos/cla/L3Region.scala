@@ -87,6 +87,7 @@ class L4Region[L](implicit val config: CLA.Config[L],
     def update(): Unit = {
       columns.foreach(_.preUpdate())
       columns.foreach(_.postUpdate())
+      inhibitColumns()
     }
   }
 

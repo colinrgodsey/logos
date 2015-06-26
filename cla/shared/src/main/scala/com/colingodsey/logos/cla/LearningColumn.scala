@@ -34,6 +34,7 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
   val ordinal = math.random
 
   var wasActive: Boolean = false
+  var feedForwardActive: Boolean = false
   var wasPredicted: Boolean = false
   var activeCount: Int = 0
 
@@ -52,12 +53,13 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
     val learningColumn = layer.getLearningColumn
     val learningMotor = layer.getLearningMotorNodes.take(seededDistalConnections)
 
-    if(learningColumn.active && learningMotor.length > segmentThreshold) {
-      val segment = new DendriteSegment(layer)
-      learningMotor foreach { s =>
-        segment.addConnection(s, getRandomDistalPermanence)
-      }
+    if(learningColumn.active && learningMotor.length > minOverlap) {
 
+      val segment = new DendriteSegment(layer, activationThresholdOpt = Some(minOverlap))
+      learningMotor foreach { s =>
+        segment.addConnection(s, connectionThreshold / 2.0)
+      }
+println("learned l4 transition")
       learnedTransitions += learningColumn -> segment
     }
   }
@@ -65,19 +67,42 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
   def preUpdate(): Unit = {
     wasActive = active
 
-    if(inputSegment.active) activeCount += 1
+    feedForwardActive = inputSegment.active
 
-    if(wasPredicted) activeCount = 0
+    if(activeCount > 0) activeCount -= 1
+    if(activeCount > 30) activeCount = 30
+
+    if(feedForwardActive && !active) activeCount += 1//4
+
+    if(wasPredicted) activeCount -= 3
+
+    if(activeCount < 0) activeCount = 0
   }
 
   def postUpdate(): Unit = {
     learnedTransitions.foreach(_._2.update())
 
     wasPredicted = learnedTransitions.exists {
-      case (c, s) => c.active && s.active
+      case (c, s) =>
+        val res = c.active && s.active
+
+        c.activeCount += 10
+
+        res
     }
 
-    if(!wasPredicted) learnTransition()
+    if(!wasPredicted) {
+      learnTransition()
+
+      if(learnedTransitions.size > maxDistalDendrites) {
+        val p = learnedTransitions.minBy(_._2.activeDutyCycle.toDouble)
+
+        learnedTransitions -= p
+      }
+    }
+
+    if(wasPredicted)
+      learnedTransitions.maxBy(pair => (pair._1.active, pair._2.overlap))._2.reinforce()
   }
 }
 

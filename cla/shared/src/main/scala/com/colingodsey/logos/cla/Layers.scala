@@ -22,7 +22,14 @@ trait L4Layer[L] extends SequenceLayer {
   def getLearningColumn: L4Column[L] = columns.maxBy(c => (c.overlap, math.random))
 
   def getLearningMotorNodes = {
-    motorInput.segments.toStream.filter(_.active).sortBy(s => (s.overlap, math.random))
+    motorInput.segments.toStream.filter(_.active).sortBy(s => (-s.overlap, math.random))
+  }
+
+  //TODO: need to try inhibit columns that dont transition somewhere maybe....
+  def inhibitColumns(): Unit = {
+    val sorted = columns.sortBy(c => (!c.active, !c.feedForwardActive, -c.activeCount, -c.overlap, c.ordinal))
+
+    sorted.drop(config.desiredLocalActivity).foreach(_.activeCount = 0)
   }
 }
 
