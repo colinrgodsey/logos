@@ -81,6 +81,11 @@ println("learned l4 transition")
 
   def postUpdate(): Unit = {
     learnedTransitions.foreach(_._2.update())
+    learnedTransitions.foreach {
+      case (_, segment) =>
+        segment.update()
+        segment.updateDutyCycle()
+    }
 
     wasPredicted = learnedTransitions.exists {
       case (c, s) =>
@@ -101,8 +106,12 @@ println("learned l4 transition")
       }
     }
 
-    if(wasPredicted)
-      learnedTransitions.maxBy(pair => (pair._1.active, pair._2.overlap))._2.reinforce()
+    if(wasPredicted) {
+      val max = learnedTransitions.maxBy(pair => (pair._1.active, pair._2.activationOrdinal))._2
+
+      if(max.active) max.reinforce()
+    }
+
   }
 }
 
