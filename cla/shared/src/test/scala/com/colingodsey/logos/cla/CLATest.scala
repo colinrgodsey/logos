@@ -14,7 +14,7 @@ object CLATest extends TestSuite {
     //segmentThreshold = 8,
     dutyAverageFrames = 100,
     dynamicInhibitionRadius = true,
-    inputWidth = 256,
+    inputWidth = 180,
     desiredLocalActivity = 10,
     regionWidth = 256, minOverlap = 6)
 

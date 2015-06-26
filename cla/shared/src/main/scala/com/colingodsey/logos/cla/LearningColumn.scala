@@ -8,12 +8,10 @@ import scala.concurrent.ExecutionContext
 trait MiniColumn extends NeuralNode { column =>
   var wasPredicted: Boolean
   var wasActive: Boolean
-  var active: Boolean
+  def active: Boolean
 
   //def input: NeuralNode
   val layer: Layer
-
-  def update(): Unit
 
   def ordinal: Double
 }
@@ -26,66 +24,65 @@ trait LearningColumn extends MiniColumn {
 }
 
 final class L4Column[L](val layer: L4Layer[L], val loc: L,
-    val inputSegment: DendriteSegment) extends LearningColumn { column =>
+    val inputSegment: NeuralNode) extends LearningColumn { column =>
   import layer.config
   import config._
 
-  //val cell = new Cell(column)
+  //val learningCell = new Cell(column)
+  var learnedTransitions = Set[(L4Column[L], DendriteSegment)]()
+
   val ordinal = math.random
 
   var wasActive: Boolean = false
   var wasPredicted: Boolean = false
-  var active: Boolean = false
+  var activeCount: Int = 0
 
-  def update(): Unit = {
-    wasActive = active
+  def active = activeCount > 0
 
+  def boost = inputSegment match {
+    case x: SDR => x.boost
+    case _ => 0.0
   }
-/*
-  def checkFillSegment(segment: DistalDendrite[L], learningCells: => Stream[Cell]): Unit = {
-    val full = segment.isFull
+  def overlap = inputSegment match {
+    case x: SDR => x.overlap
+    case _ => 0.0
+  }
 
-    if(!segment.active && !full) {
-      segment.mostActive match {
-        case Some(segment) if segment.numConnections < config.seededDistalConnections =>
-          fillSegment(segment, learningCells)
-        case _ =>
-          addNewSegment(segment, learningCells)
+  def learnTransition() = {
+    val learningColumn = layer.getLearningColumn
+    val learningMotor = layer.getLearningMotorNodes.take(seededDistalConnections)
+
+    if(learningColumn.active && learningMotor.length > segmentThreshold) {
+      val segment = new DendriteSegment(layer)
+      learningMotor foreach { s =>
+        segment.addConnection(s, getRandomDistalPermanence)
       }
 
-    } else if(full && segment.active) {
-      val toRemove = segment.leastActiveDuty
-
-      toRemove.foreach(segment.removeSegment(_))
+      learnedTransitions += learningColumn -> segment
     }
   }
 
-  protected def fillSegment(segment: DendriteSegment, learningCells: Stream[Cell]): Unit = {
-    if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
-      val cell = learningCells.head
-      segment.addConnection(cell, getRandomDistalPermanence)
-      fillSegment(segment, learningCells.tail)
+  def preUpdate(): Unit = {
+    learnedTransitions.foreach(_._2.update())
+
+    wasPredicted = learnedTransitions.exists {
+      case (c, s) => c.active && s.active
     }
+
   }
 
-  protected def addNewSegment(dendrite: DistalDendrite[L], getLearningCells: => Stream[Cell]): Unit = {
-    val segment = new DendriteSegment(dendrite)
+  def postUpdate(): Unit = {
+    wasActive = active
 
-    val learningCells = getLearningCells
+    if(inputSegment.active) activeCount += 1
 
-    if(learningCells.isEmpty) return
-
-    dendrite.segments :+= segment
-
-    fillSegment(segment, learningCells)
-
-    segment.update()
-    segment.updateDutyCycle(force = true)
-  }*/
+    if(wasPredicted) activeCount = 0
+    else learnTransition()
+  }
 }
 
 final class L3Column[L](val layer: L3Layer[L], val loc: L,
-    val inputSegment: DendriteSegment) extends LearningColumn { column =>
+    val inputSegment: NeuralNode) extends LearningColumn { column =>
   import layer.config
   import config._
 
@@ -107,8 +104,14 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
 
   def ordinal = uuid
 
-  def boost = inputSegment.boost
-  def overlap = inputSegment.overlap
+  def boost = inputSegment match {
+    case x: SDR => x.boost
+    case _ => 0.0
+  }
+  def overlap = inputSegment match {
+    case x: SDR => x.overlap
+    case _ => 0.0
+  }
 
   override def toString = {
     val active = cells.map {
@@ -136,29 +139,6 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
     cells.foreach(_.computePredictive())
 
     selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
-  }
-
-  //TODO: learning cell and sequence segments
-  def temporalPostPooler(): Unit = {
-    if (active) {
-      cells.foreach(_.activateIfPredicted())
-
-      wasPredicted = cells.exists(_.active)
-
-      /*
-    if none active from prediction, activate all
-    for our 'context-less' activation.
-    Otherwise deactivate all.
-    */
-      if (!wasPredicted) {
-        cells.foreach(_.activate(1))
-      }
-    } else {
-      //deactivate all
-      cells.foreach(_.tickDown())
-      wasPredicted = cells.exists(_.active)
-    }
-
 
     val hasPredictive = cells.exists(_.predictive)
 
@@ -172,6 +152,20 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
       //only reinforce the 'learning cell' here (max predication)
       learningCell.reinforceDistal()
     }
+  }
+
+  //TODO: learning cell and sequence segments
+  def temporalPostPooler(): Unit = {
+    cells.foreach(_.tickDown())
+
+    if(active) cells.foreach(_.activateIfPredicted())
+
+    //TODO: wasPredicted only if active this round?
+    wasPredicted = cells.exists(_.active)
+
+    //burst cells if not predicted
+    if (!wasPredicted && active)
+      cells.foreach(_.activate(1))
   }
 
   def update(): Unit = {

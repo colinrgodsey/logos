@@ -40,13 +40,14 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
 
   protected def deactivate(): Unit = {
     _active = false
-    predictive = false
+    //predictive = false
   }
 
   def activate(forTicks: Int): Unit = {
     _active = true
-    predictive = false
-    activeForTicks = forTicks
+    //predictive = false
+    //TODO: reset, or min?
+    activeForTicks = math.min(forTicks, activeForTicks)
   }
 
   //TODO: count receptive, or no?
@@ -56,7 +57,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
 
   def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
-  def fillSegment(segment: DendriteSegment, learningCells: Stream[Cell]): Unit = {
+  def fillSegment(segment: DendriteSegment, learningCells: Stream[NeuralNode]): Unit = {
     if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
       val cell = learningCells.head
       segment.addConnection(cell, getRandomDistalPermanence)
@@ -67,7 +68,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   def addNewSegment(): Unit = {
     val segment = new DendriteSegment(distalDendrite)
 
-    val learningCells = column.layer.getLearningCells(cell.column)
+    val learningCells = column.layer.getLearningNodes(cell.column)
 
     if(learningCells.isEmpty) return
 
@@ -90,7 +91,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
     if(!distalDendrite.active && !full) {
       distalDendrite.mostActive match {
         case Some(segment) if segment.numConnections < config.seededDistalConnections =>
-          fillSegment(segment, column.layer.getLearningCells(column))
+          fillSegment(segment, column.layer.getLearningNodes(column))
         case _ =>
           addNewSegment()
       }
@@ -103,6 +104,6 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   }
 
   def activateIfPredicted(): Unit = {
-    if (predictive) activate(learningCellDuration) else tickDown()
+    if (predictive) activate(learningCellDuration)
   }
 }

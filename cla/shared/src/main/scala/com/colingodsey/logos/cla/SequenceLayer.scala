@@ -7,8 +7,7 @@ trait SequenceLayer extends Layer {
 
   implicit val config: Config[Location]
 
-  def update(): Unit
-  def getLearningCells: Stream[Cell]
+  def getLearningNodes: Stream[NeuralNode]
   //def input(idx: Int): Boolean
   //def inhibitionRadius: Double
 
@@ -22,8 +21,11 @@ trait SequenceLayer extends Layer {
     else 1.0 - numActiveFromPrediction / na
   }
 
-  def getLearningCells(c: LearningColumn): Stream[Cell]  =
-    getLearningCells.filter(_.column != c)
+  def getLearningNodes(c: LearningColumn): Stream[NeuralNode]  =
+    getLearningNodes.filter {
+      case cell: Cell => cell.column != c
+      case _ => true
+    }
 
   def activeColumns = columns.iterator.filter(_.active)
 }

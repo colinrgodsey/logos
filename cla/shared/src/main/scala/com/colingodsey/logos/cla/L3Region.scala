@@ -15,11 +15,10 @@ class L3Region[L](implicit val config: CLA.Config[L],
   import config._
 
   val inputLayer = new InputSDR[L]
-  val l3Layer: L3Layer[L] = new LocalL3Layer
 
   def maxDutyCycle = inputLayer.maxDutyCycle
 
-  private class LocalL3Layer extends L3Layer[L] { l3Layer =>
+  object l3Layer extends L3Layer[L] { l3Layer =>
     implicit val config = region.config
 
     val columns: IndexedSeq[L3Column[L]] =
@@ -58,24 +57,45 @@ class L4Region[L](implicit val config: CLA.Config[L],
   import config._
 
   val inputLayer = new InputSDR[L]
-  val l3Layer: L3Layer[L] = new LocalL3Layer
+  val motorInput = new InputSDR[L]
 
   def maxDutyCycle = inputLayer.maxDutyCycle
 
-  def update(input: Input): Unit = {
+  def update(input: Input, motor: Input): Unit = {
     inputLayer.update(input) //spatial pooling
+    motorInput.update(motor) //spatial pooling
+    l4Layer.update()
     l3Layer.update()
   }
 
-  private class LocalL3Layer extends L3Layer[L] {
+  object l4Layer extends L4Layer[L] {
     implicit val config = region.config
 
-    val columns: IndexedSeq[L3Column[L]] =
+    val columns: IndexedSeq[L4Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
         val segment = inputLayer.segments(idx)
         val loc = topology.columnLocationFor(idx)
 
-        new L3Column[L](this, loc, segment)
+        new L4Column[L](this, loc, segment)
+      }.toIndexedSeq
+
+    def maxDutyCycle: Double = region.maxDutyCycle
+    def inhibitionRadius = inputLayer.inhibitionRadius
+
+    def motorInput: InputSDR[L] = region.motorInput
+
+    def update(): Unit = {
+      columns.foreach(_.preUpdate())
+      columns.foreach(_.postUpdate())
+    }
+  }
+
+  object l3Layer extends L3Layer[L] {
+    implicit val config = region.config
+
+    val columns: IndexedSeq[L3Column[L]] =
+      l4Layer.columns.map { column =>
+        new L3Column[L](this, column.loc, column)
       }.toIndexedSeq
 
     def update(): Unit = {

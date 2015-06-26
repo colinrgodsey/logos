@@ -10,11 +10,20 @@ trait Layer extends DutyCycle.Booster {
 
 trait L4Layer[L] extends SequenceLayer {
   type Location = L
+  override type ColumnType = L4Column[L]
 
   implicit val config: CLA.Config[L]
 
-  def getLearningMotorNodes: Stream[Cell] = ???
-  def getLearningSensorNodes: Stream[Cell] = ???
+  def motorInput: InputSDR[L]
+
+  //TODO: multiple learning cells when bursting?
+  def getLearningNodes: Stream[NeuralNode] = Stream.empty
+
+  def getLearningColumn: L4Column[L] = columns.maxBy(c => (c.overlap, math.random))
+
+  def getLearningMotorNodes = {
+    motorInput.segments.toStream.filter(_.active).sortBy(s => (s.overlap, math.random))
+  }
 }
 
 trait L3Layer[L] extends SequenceLayer {
@@ -25,7 +34,8 @@ trait L3Layer[L] extends SequenceLayer {
 
   def inhibitionRadius: Double
 
-  def getLearningCells: Stream[Cell] = {
+  //TODO: multiple learning cells when bursting?
+  def getLearningNodes: Stream[NeuralNode] = {
     columns.toStream.sortBy { c =>
       (!c.wasPredicted, !c.wasActive, c.ordinal)
     }.map(_.learningCell)

@@ -40,7 +40,7 @@ object CLA {
       minOverlap: Int = 8,
 
       segmentThreshold: Int = 12,
-      seededDistalConnections: Int = 20,
+      seededDistalConnections: Int = 18,
       maxDistalDendrites: Int = 128,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
