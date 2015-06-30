@@ -17,8 +17,8 @@ final class DendriteSegment(
   var potentialActivation = 0
   var receptive = 0
 
-  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random)
-  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random)
+  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
   //var sequenceSegment = false
 
   val ordinal = math.random

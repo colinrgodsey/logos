@@ -16,8 +16,6 @@ class L3Region[L](implicit val config: CLA.Config[L],
 
   val inputLayer = new InputSDR[L]
 
-  def maxDutyCycle = inputLayer.maxDutyCycle
-
   object l3Layer extends L3Layer[L] { l3Layer =>
     implicit val config = region.config
 
@@ -41,7 +39,7 @@ class L3Region[L](implicit val config: CLA.Config[L],
     def inhibitionRadius = inputLayer.inhibitionRadius
   }
 
-
+  def maxDutyCycle = inputLayer.maxDutyCycle
 
   def update(input: Input): Unit = {
     inputLayer.update(input) //spatial pooling
@@ -58,15 +56,6 @@ class L4Region[L](implicit val config: CLA.Config[L],
 
   val inputLayer = new InputSDR[L]
   val motorInput = new InputSDR[L]
-
-  def maxDutyCycle = inputLayer.maxDutyCycle
-
-  def update(input: Input, motor: Input): Unit = {
-    inputLayer.update(input) //spatial pooling
-    motorInput.update(motor) //spatial pooling
-    l4Layer.update()
-    l3Layer.update()
-  }
 
   object l4Layer extends L4Layer[L] {
     implicit val config = region.config
@@ -109,5 +98,14 @@ class L4Region[L](implicit val config: CLA.Config[L],
     //def input(idx: Int): Boolean
     def maxDutyCycle: Double = region.maxDutyCycle
     def inhibitionRadius = inputLayer.inhibitionRadius
+  }
+
+  def maxDutyCycle = inputLayer.maxDutyCycle
+
+  def update(input: Input, motor: Input): Unit = {
+    inputLayer.update(input) //spatial pooling
+    motorInput.update(motor) //spatial pooling
+    l4Layer.update()
+    l3Layer.update()
   }
 }

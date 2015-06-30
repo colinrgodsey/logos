@@ -19,7 +19,8 @@ trait L4Layer[L] extends SequenceLayer {
   //TODO: multiple learning cells when bursting?
   def getLearningNodes: Stream[NeuralNode] = Stream.empty
 
-  def getLearningColumn: L4Column[L] = columns.maxBy(c => (c.overlap, math.random))
+  def getLearningColumns: Stream[L4Column[L]] =
+    columns.toStream.filter(_.feedForwardActive).sortBy(c => (-c.overlap, c.ordinal))
 
   def getLearningMotorNodes = {
     motorInput.segments.toStream.filter(_.active).sortBy(s => (-s.overlap, math.random))
