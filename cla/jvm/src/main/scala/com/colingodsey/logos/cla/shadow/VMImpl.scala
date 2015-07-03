@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 
 object VMImpl {
   def distributedExec[T](chunkSize: Int, items: IndexedSeq[T])(f: T => Unit)(implicit ec: ExecutionContext): Unit = {
-    val vectorBuilder = new VectorBuilder[Future[Unit]]
+    /*val vectorBuilder = new VectorBuilder[Future[Unit]]
     var i = 0
     var firstChunk: Iterator[T] = null
 
@@ -29,7 +29,9 @@ object VMImpl {
 
     Await.result(future, 100.seconds)
 
-    ()
+    ()*/
+
+    items foreach f
   }
 
   def newDefaultExecutionContext = ExecutionContext.fromExecutor(Executors.newCachedThreadPool)

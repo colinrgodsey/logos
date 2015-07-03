@@ -21,9 +21,13 @@ final class DendriteSegment(
   val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
   //var sequenceSegment = false
 
-  val ordinal = math.random
+  //var ordinal = math.random
+
+  val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
 
   protected var connections = synapses.toArray
+
+  def ordinal = activeDutyCycle.toDouble
 
   def receptiveRadius[L](center: L)(implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
@@ -36,12 +40,16 @@ final class DendriteSegment(
     }.max
   }
 
-  //TODO: min activation for boost?
-  //def activationOrdinal = (overlap, activation, potentialActivation, ordinal)
+  /*
 
-  //as a 'tie-breaker', tend to favor the least active segments
-  //(produce new sequences instead of converging on a recently active one)
-  def activationOrdinal = (overlap, activation.toDouble, potentialActivation.toDouble, math.random)
+  as a 'tie-breaker', tend to favor the least active segments
+  (produce new sequences instead of converging on a recently active one)
+
+  if we cant find the most active segment, we find the most potentially active one
+   */
+  def activationOrdinal = (overlap, ghostActivation, 0.0, ordinal)
+
+  def ghostActivation = activation.toDouble + potentialActivation.toDouble
 
   def update(): Unit = {
     var act = 0
@@ -82,7 +90,6 @@ final class DendriteSegment(
   def permanenceInc: Double = config.permanenceInc
   def permanenceDec: Double = config.permanenceDec
   def boostIncr: Double = config.boostIncr
-  val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
 
   override def minThreshold = activationThreshold
 }

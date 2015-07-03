@@ -4,14 +4,12 @@ import com.colingodsey.logos.collections.RollingAverage
 
 import scala.concurrent.ExecutionContext
 
-class InputSDR[L](val scale: Double = 1.0)(implicit val config: CLA.Config[L],
+class InputSDR[L](implicit val config: CLA.Config[L],
     ec: ExecutionContext) extends DutyCycle.Booster { inputLayer =>
   import com.colingodsey.logos.cla.CLA._
   import config._
 
-  val inputConnectionsPerColumn = (config.inputConnectionsPerColumn * scale).toInt
-  val inputRangeRadius = (config.inputRangeRadius * scale).toInt
-  val width = (config.numColumns * scale).toInt
+  val width = config.numColumns
 
   val segments = (for(i <- 0 until width) yield createSegment(i)).toArray
   val currentInput = Array.fill(inputWidth)(false)
@@ -21,17 +19,22 @@ class InputSDR[L](val scale: Double = 1.0)(implicit val config: CLA.Config[L],
 
   protected def createSegment(idx: Int) = {
     val columnLoc = topology.columnLocationFor(idx)
-    val inputColumnLoc = topology.scale(columnLoc, inputWidth / numColumns.toDouble)
+    val inputColumnLoc = topology.scale(columnLoc, inputWidth / width.toDouble)
+
+    val indexStream = if(nonLocalizedInput) {
+      Stream.continually((math.random * inputWidth).toInt).take(10000).distinct
+    } else {
+      topology.uniqueNormalizedLocations(inputColumnLoc, config.inputRangeRadius, inputWidth).
+          map(topology.indexFor(_, inputWidth))
+    }
 
     val inputMap: IndexedSeq[Int] =
-      topology.uniqueNormalizedLocations(inputColumnLoc, inputRangeRadius).
-        take(inputConnectionsPerColumn).
-        map(topology.indexFor(_, inputWidth)).toArray.toIndexedSeq
+      indexStream.take(config.inputConnectionsPerColumn).toArray.toIndexedSeq
 
     val nodes = inputMap.map { iidx =>
-      val scaledIdx = (iidx.toDouble / inputWidth * numColumns).toInt
+      val inputLoc = topology.columnLocationFor(iidx)
       val node: NeuralNode = new topology.LocalNeuralNode {
-        val loc: L = topology.columnLocationFor(scaledIdx)
+        val loc: L = topology.scale(inputLoc, width.toDouble / inputWidth)
         def active: Boolean = currentInput(iidx)
       }
 
@@ -45,7 +48,7 @@ class InputSDR[L](val scale: Double = 1.0)(implicit val config: CLA.Config[L],
     topology.columnIndexesNear(loc, rad) map segments
 
   def update(input: Input): Unit = {
-    for(i <- 0 until input.length) this.currentInput(i) = input(i)
+    for(i <- 0 until math.min(input.length, inputWidth)) this.currentInput(i) = input(i)
 
     spatialPooler()
 

@@ -29,47 +29,50 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredLocalActivity: Int = 40,
+      desiredActivityPercent: Double = 0.04,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 128,
-      //inputConnectionsPerColumn: Int = 20,
-      inputRangePercent: Double = 0.1,
+      inputConnectedPercent: Double = 0.30,
       inputRangeSpreadPercent: Double = 0.15,
-      minOverlap: Int = 8,
+      overlapPercent: Double = 0.15, //percent of input connections per column
 
       segmentThreshold: Int = 12,
       seededDistalConnections: Int = 18,
-      maxDistalDendrites: Int = 128,
+      maxDistalDendrites: Int = 64,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
 
       connectionThreshold: Double = 0.2,
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
-      learningCellDuration: Int = 3, //in ticks
+      learningCellDuration: Int = 1,//3, //in ticks
 
       boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 20,
+      dutyAverageFrames: Int = 70,
 
-      topology: Topology[L] = OneDimensionalTopology,
-      dynamicInhibitionRadius: Boolean = false,
+      topology: Topology[L] = RingTopology,
+      dynamicInhibitionRadius: Boolean = true,
       dynamicInhibitionRadiusScale: Double = 0.5,
 
       specificNumWorkers: Option[Int] = None
   ) {
-    val inputConnectionsPerColumn = (inputWidth * inputRangeSpreadPercent).toInt
-    require(minOverlap < inputConnectionsPerColumn, "overlap must be greater than possible connections")
-
+    val inputConnectionsPerColumn = (inputWidth * inputConnectedPercent).toInt
+    val minOverlap = math.ceil(inputConnectionsPerColumn * overlapPercent).toInt
     val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()
-    //val inputRange = (inputWidth * inputRangePercent).toInt
     val inputRangeRadius = inputRangeSpreadPercent * inputWidth / 2.0
+    val nonLocalizedInput = inputRangeSpreadPercent >= 1.0
+    val desiredLocalActivity = math.ceil(regionWidth * desiredActivityPercent).toInt
 
     implicit val _topology = topology
 
+    def scaleInputsBy(scale: Double) = copy(
+      inputWidth = (inputWidth * scale).toInt
+    )
+
     def getRandomProximalPermanence = {
-      val s = connectionThreshold * 0.2 //10% variance
+      val s = connectionThreshold * 0.3 //10% variance
       val n = (s * 2 * math.random) - s
 
       //connectionThreshold / 2.0
@@ -77,60 +80,63 @@ object CLA {
     }
 
     def getRandomDistalPermanence = {
-      val s = connectionThreshold * 0.1 //10% variance
+      val s = connectionThreshold * 0.3 //10% variance
       val n = (s * 2 * math.random) - s
 
-      //connectionThreshold / 2.0
-      //connectionThreshold + 0.2
-      connectionThreshold + n
+      connectionThreshold / 2.0
+      //connectionThreshold + n
     }
     
     val numColumns = math.pow(regionWidth, topology.dims).toInt
   }
 
   val DefaultConfig = Config()
+  val ReducedConfig = DefaultConfig.copy(
+    columnHeight = 16,
+    inputWidth = 180,
+    regionWidth = 128
+  )
 
   type Input = {
     def length: Int
     def apply(idx: Int): Boolean
     def toSeq: Seq[Boolean]
+    def iterator: Iterator[Boolean]
+  }
+
+  trait InputBase { self: Input =>
+
   }
 
   trait Topology[L] {
     type Location = L
 
-    def locationsNear(loc: Location, rad: Double): Iterator[Location]
+    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Location]
     def distance(a: Location, b: Location)(implicit cfg: CLA.Config[L]): Double
     def dims: Int
     def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int
     def columnLocationFor(idx: Int): Location
     def indexFor(loc: Location, width: Int): Int
     def scale(loc: Location, s: Double): Location
+    def normalizedRandomLocations(loc: Location, rad: Double, width: Int,
+        r: Random = Random): Stream[Location]
 
     def columnIndexesNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Int] =
       locationsNear(loc, rad) map columnIndexFor
 
-    def randomLocationsNear(loc: Location, rad: Double): Stream[Location] = {
+    def randomLocationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Stream[Location] = {
       val seq = locationsNear(loc, rad).toIndexedSeq
 
       seq.sortBy(_ => math.random).toStream
     }
 
-    def uniqueNormalizedLocations(loc: Location, rad: Double): Stream[Location] = {
-      def take(stream: Stream[Location], gathered: Set[Location] = Set.empty
-            ): Stream[Location] = stream.headOption match {
-        case Some(l) if gathered(l) => take(stream.tail, gathered)
-        case Some(l) => l #:: take(stream.tail, gathered + l)
-        case None => sys.error("no more... somehow ")
-      }
+    def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location] =
+      normalizedRandomLocations(loc, rad, width).take(10000).distinct
 
-      take(normalizedRandomLocations(loc, rad))
-    }
+    def indexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int =
+      indexFor(loc, cfg.regionWidth)
 
-    def normalizedRandomLocations(loc: Location, rad: Double,
-      r: Random = Random): Stream[Location]
-
-    def randomLocationNear(loc: Location, rad: Double): Location =
+    def randomLocationNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Location =
       randomLocationsNear(loc, rad).head
 
     trait LocalNeuralNode extends NeuralNode {
@@ -138,8 +144,47 @@ object CLA {
     }
   }
 
-  case object OneDimensionalTopology extends Topology[Int] {
-    def locationsNear(loc: Location, rad: Double): Iterator[Location] = {
+  trait TwoDTopology extends Topology[Int] {
+    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[Int]): Int =
+      indexFor(loc)
+
+    def dims = 1
+
+    def columnLocationFor(idx: Int): Location = idx
+
+    def scale(loc: Location, s: Double): Location = (loc * s).toInt
+  }
+
+  case object LineTopology extends TwoDTopology {
+    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[Int]): Iterator[Location] = {
+      val min = (loc - rad).toInt
+      val max = (loc + rad).toInt
+
+      (min to max).iterator.filter(x => x >= 0 && x < cfg.regionWidth)
+    }
+
+    def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double =
+      math.abs(a - b).toDouble
+
+    def indexFor(x: Location, width: Int): Int = {
+      require(x >= 0 && x < width, "invalid line location!")
+
+      x
+    }
+
+    //1st standard deviation. 70% within rad
+    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
+      val x: Location = (r.randomNormal * rad + loc).toInt
+
+      if(x >= 0 && x < width)
+        x #:: normalizedRandomLocations(loc, rad, width)
+      else
+        normalizedRandomLocations(loc, rad, width)
+    }
+  }
+
+  case object RingTopology extends TwoDTopology {
+    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[Int]): Iterator[Location] = {
       val min = (loc - rad).toInt
       val max = (loc + rad).toInt
 
@@ -154,12 +199,6 @@ object CLA {
       d
     }
 
-    def dims = 1
-
-    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[Int]): Int = {
-      indexFor(loc, cfg.regionWidth)
-    }
-
     def indexFor(loc: Location, width: Int): Int = {
       var x = loc
 
@@ -170,15 +209,11 @@ object CLA {
       x
     }
 
-    def columnLocationFor(idx: Int): Location = idx
-
-    def scale(loc: Location, s: Double): Location = (loc * s).toInt
-
     //1st standard deviation. 70% within rad
-    def normalizedRandomLocations(loc: Location, rad: Double, r: Random): Stream[Location] = {
+    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
       val x: Location = (r.randomNormal * rad + loc).toInt
 
-      x #:: normalizedRandomLocations(loc, rad)
+      x #:: normalizedRandomLocations(loc, rad, width)
     }
   }
 

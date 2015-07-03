@@ -16,7 +16,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   var activeForTicks = 0
 
   val distalDendrite = new DistalDendrite[Location](column.loc)
-  val ordinal = math.random
+  var ordinal = math.random
 
   def active = _active
 
@@ -34,6 +34,8 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
 
   def tickDown(): Unit = {
     activeForTicks -= 1
+
+    ordinal = math.random
 
     if(activeForTicks <= 0) deactivate()
   }
@@ -53,7 +55,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
   def activationOrdinal =
-    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, math.random)
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, ordinal)
 
   def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
@@ -70,7 +72,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
 
     val learningCells = column.layer.getLearningNodes(cell.column)
 
-    if(learningCells.isEmpty) return
+    if(learningCells.length < segmentThreshold) return
 
     distalDendrite.segments :+= segment
 
@@ -81,9 +83,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   }
 
   def reinforceDistal(): Unit = {
-    //distalDendrite.reinforce()
-
-    val pruned = distalDendrite.reinforce()
+    distalDendrite.reinforce()
 
     val full = distalDendrite.isFull
 

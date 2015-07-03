@@ -54,11 +54,14 @@ class L4Region[L](implicit val config: CLA.Config[L],
   import CLA._
   import config._
 
+  val numl4cells = 3
+
   val inputLayer = new InputSDR[L]
   val motorInput = new InputSDR[L]
+  val l4Input = new InputSDR[L]()(config.copy(inputWidth = config.numColumns * numl4cells), ec)
 
   object l4Layer extends L4Layer[L] {
-    implicit val config = region.config
+    implicit val config = region.config.copy(columnHeight = numl4cells)
 
     val columns: IndexedSeq[L4Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
@@ -69,14 +72,19 @@ class L4Region[L](implicit val config: CLA.Config[L],
       }.toIndexedSeq
 
     def maxDutyCycle: Double = region.maxDutyCycle
-    def inhibitionRadius = inputLayer.inhibitionRadius
+    def inhibitionRadius = l4Input.inhibitionRadius
 
     def motorInput: InputSDR[L] = region.motorInput
 
     def update(): Unit = {
-      columns.foreach(_.preUpdate())
+      /*columns.foreach(_.preUpdate())
       columns.foreach(_.postUpdate())
-      inhibitColumns()
+      inhibitColumns()*/
+
+      columns.foreach(_.update())
+      VM.distributedExec(desiredLocalActivity / numWorkers,
+        activeColumns.toIndexedSeq)(_.temporalPrePooler())
+      activeColumns.foreach(_.temporalPostPooler())
     }
   }
 
@@ -84,8 +92,11 @@ class L4Region[L](implicit val config: CLA.Config[L],
     implicit val config = region.config
 
     val columns: IndexedSeq[L3Column[L]] =
-      l4Layer.columns.map { column =>
-        new L3Column[L](this, column.loc, column)
+      (0 until l4Input.segments.length).map { idx =>
+        val segment = l4Input.segments(idx)
+        val loc = topology.columnLocationFor(idx)
+
+        new L3Column[L](this, loc, segment)
       }.toIndexedSeq
 
     def update(): Unit = {
@@ -106,6 +117,10 @@ class L4Region[L](implicit val config: CLA.Config[L],
     inputLayer.update(input) //spatial pooling
     motorInput.update(motor) //spatial pooling
     l4Layer.update()
+    l4Input.update(l4Layer.getInput)
     l3Layer.update()
   }
+
+  def update(input: Input): Unit =
+    update(input, Nil)
 }

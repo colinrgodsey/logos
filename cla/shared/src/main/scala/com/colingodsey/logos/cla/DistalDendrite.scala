@@ -7,7 +7,6 @@ final class DistalDendrite[L](
   
   var active = false
   var segments = IndexedSeq[DendriteSegment]()
-  var synapseFillPercent = 100000
   var mostActive: Option[DendriteSegment] = None
   var maxDutyCycle = 1.0
 
@@ -27,10 +26,8 @@ final class DistalDendrite[L](
       s.update()
       s.updateDutyCycle()
     }
-    //synapseFillPercent = segments.iterator.map(_.numConnections).sum / (segments.length * seededDistalConnections)
 
-    //TODO: min threshold?
-    mostActive = //segments.toStream.sortBy(-_.activation).headOption
+    mostActive =
       if(segments.isEmpty) None
       else Some(segments.maxBy(_.activationOrdinal))
 
@@ -51,5 +48,11 @@ final class DistalDendrite[L](
   }
 
   //TODO: min activation?
-  def reinforce(): Unit = mostActive.foreach(_.reinforce())
+  def reinforce(): Unit = {
+    mostActive.foreach{
+      x =>
+        x.reinforce()
+        x.updateDutyCycle(force = true)
+    }
+  }
 }

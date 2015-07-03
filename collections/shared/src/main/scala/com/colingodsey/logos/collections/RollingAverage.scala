@@ -3,15 +3,17 @@ package com.colingodsey.logos.collections
 /**
  * Rolling average calculator
  * @param average - current average weighted by count
- * @param count - current count of samples
- * @param max - max number of samples
+ * @param count - current units of sample
+ * @param max - max units of sample
  */
-final class RollingAverage(val max: Int,
-    var average: Double = 0, var count: Int = 0) {
+final class RollingAverage(val max: Double,
+    var average: Double = 0.0, var count: Double = 0.0) {
 
-  def +=(n: Double) = {
-    val newCount = math.min(max, count + 1)
-    val newAverage = (average * (newCount - 1) + n) / newCount
+  def +=(n: Double): this.type = this += (n, 1.0)
+
+  def +=(n: Double, weight: Double): this.type = {
+    val newCount = math.min(max, count + weight)
+    val newAverage = (average * (newCount - weight) + n) / newCount
 
     average = newAverage
     count = newCount

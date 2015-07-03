@@ -26,7 +26,8 @@ case class ScalarEncoder(val length: Int, size: Int,
     def length = ScalarEncoder.this.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
 
-    def toSeq = for(i <- 0 until length) yield apply(i)
+    def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
+    def iterator = Iterator.from(0) take length map apply
 
     override def toString = toSeq.map(x => if(x) 1 else 0).mkString
   }
