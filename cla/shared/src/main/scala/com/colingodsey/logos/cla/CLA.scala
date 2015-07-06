@@ -120,6 +120,7 @@ object CLA {
     def scale(loc: Location, s: Double): Location
     def normalizedRandomLocations(loc: Location, rad: Double, width: Int,
         r: Random = Random): Stream[Location]
+    def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location]
 
     def columnIndexesNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Int] =
       locationsNear(loc, rad) map columnIndexFor
@@ -129,9 +130,6 @@ object CLA {
 
       seq.sortBy(_ => math.random).toStream
     }
-
-    def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location] =
-      normalizedRandomLocations(loc, rad, width).take(10000).distinct
 
     def indexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int =
       indexFor(loc, cfg.regionWidth)
@@ -153,6 +151,18 @@ object CLA {
     def columnLocationFor(idx: Int): Location = idx
 
     def scale(loc: Location, s: Double): Location = (loc * s).toInt
+
+    def uniqueNormalizedLocations(loc: Location,
+        rad: Double, width: Int): Stream[Location] = {
+      val max = ExtraMath.normalPDF(0, σ = rad)
+
+      for {
+        i <- (0 to (rad * 4).toInt).toStream
+        x <- if(i == 0) Seq(0) else Seq(i, -i)
+        prob = ExtraMath.normalPDF(i, σ = rad) / max
+        if math.random < prob
+      } yield x + loc
+    }
   }
 
   case object LineTopology extends TwoDTopology {
@@ -258,10 +268,3 @@ object NodeAndPermanence {
     case _ => None
   }
 }
-
-
-
-
-
-
-

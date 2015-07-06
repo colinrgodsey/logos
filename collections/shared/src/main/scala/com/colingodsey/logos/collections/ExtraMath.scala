@@ -5,6 +5,7 @@ import scala.util.Random
 
 object ExtraMath {
   final val TwoPi = math.Pi * 2
+  final val SqrtTwoPi = math.sqrt(TwoPi)
 
   def randomNormal: Double = randomNormal(1)
 
@@ -28,5 +29,11 @@ object ExtraMath {
 
     if(s >= 1 || s == 0) genU(r)
     else (u1, u2, s)
+  }
+
+  def normalPDF(x: Double, µ: Double = 0.0, σ: Double = 1.0): Double = {
+    val ePower = -math.pow(x - µ, 2) / (2 * σ * σ)
+
+    math.pow(math.E, ePower) / (σ * SqrtTwoPi)
   }
 }
