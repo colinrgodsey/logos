@@ -34,9 +34,9 @@ object CLA {
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 128,
-      inputConnectedPercent: Double = 0.30,
-      inputRangeSpreadPercent: Double = 0.15,
-      overlapPercent: Double = 0.15, //percent of input connections per column
+      inputConnectedPercent: Double = 0.10,
+      inputRangeSpreadPercent: Double = 0.20,
+      overlapPercent: Double = 0.30, //percent of input connections per column
 
       segmentThreshold: Int = 12,
       seededDistalConnections: Int = 18,
@@ -48,6 +48,7 @@ object CLA {
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
       learningCellDuration: Int = 1,//3, //in ticks
+      burstCellDuration: Int = 1,
 
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 70,
@@ -157,9 +158,9 @@ object CLA {
       val max = ExtraMath.normalPDF(0, σ = rad)
 
       for {
-        i <- (0 to (rad * 4).toInt).toStream
-        x <- if(i == 0) Seq(0) else Seq(i, -i)
+        i <- (0 to (width / 2)).toStream
         prob = ExtraMath.normalPDF(i, σ = rad) / max
+        x <- if(i == 0) Seq(0) else Seq(i, -i)
         if math.random < prob
       } yield x + loc
     }

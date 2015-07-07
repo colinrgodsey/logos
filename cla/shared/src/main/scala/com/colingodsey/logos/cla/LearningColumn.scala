@@ -97,7 +97,7 @@ trait LearningColumn extends MiniColumn { column =>
 
     //burst cells if not predicted
     if (!wasPredicted && active)
-      cells.foreach(_.activate(1))
+      cells.foreach(_.activate(burstCellDuration))
   }
 }
 

@@ -40,6 +40,8 @@ trait DutyCycle extends NeuralNode {
     else a * (1.0 + boost)
   }
 
+  def activeOverlap = if(active) overlap else 0.0
+
   //TODO: data from parent, or inhibition radius?
   def updateDutyCycle(force: Boolean = false): Unit = if(math.random < dutyCycleUpdateRatio || force) {
     //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max

@@ -54,14 +54,14 @@ class L4Region[L](implicit val config: CLA.Config[L],
   import CLA._
   import config._
 
-  val numl4cells = 3
+  val numl4cells = 8
 
   val inputLayer = new InputSDR[L]
   val motorInput = new InputSDR[L]
   val l4Input = new InputSDR[L]()(config.copy(inputWidth = config.numColumns * numl4cells), ec)
 
   object l4Layer extends L4Layer[L] {
-    implicit val config = region.config.copy(columnHeight = numl4cells)
+    implicit val config = region.config.copy(columnHeight = numl4cells/*, burstCellDuration = 3, learningCellDuration = 1*/, maxDistalDendrites = maxDistalDendrites / 4)
 
     val columns: IndexedSeq[L4Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
