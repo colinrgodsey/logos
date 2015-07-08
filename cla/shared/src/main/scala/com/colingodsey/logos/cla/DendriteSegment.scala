@@ -21,13 +21,11 @@ final class DendriteSegment(
   val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
   //var sequenceSegment = false
 
-  //var ordinal = math.random
+  var ordinal = math.random
 
   val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
 
   protected var connections = synapses.toArray
-
-  def ordinal = activeDutyCycle.toDouble
 
   def receptiveRadius[L](center: L)(implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
@@ -41,13 +39,23 @@ final class DendriteSegment(
   }
 
   /*
+  TODO: fundamental issue with ordinal
+
+    * similar cells are selected as the learning cells constantly
+    * should somehow also maybe reinforce similar connections instead of just over binding?
+    * results in first order sequences, not variable order
+    *
+    * maybe reinforce the most active, but if bursting, learningcell = random
+   */
+
+  /*
 
   as a 'tie-breaker', tend to favor the least active segments
   (produce new sequences instead of converging on a recently active one)
 
   if we cant find the most active segment, we find the most potentially active one
    */
-  def activationOrdinal = (overlap, ghostActivation, 0.0, ordinal)
+  def activationOrdinal = (if(active) overlap else 0.0, 0.0/*ghostActivation*/, 0.0, ordinal)
 
   def ghostActivation = activation.toDouble + potentialActivation.toDouble
 
@@ -80,6 +88,8 @@ final class DendriteSegment(
 
     wasActive = active
     active = activation >= activationThreshold
+
+    ordinal = math.random
 
     if(active) boost = 0.0
   }

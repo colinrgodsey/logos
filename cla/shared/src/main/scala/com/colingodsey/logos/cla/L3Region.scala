@@ -60,6 +60,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
   val motorInput = new InputSDR[L]
   val l4Input = new InputSDR[L]()(config.copy(inputWidth = config.numColumns * numl4cells), ec)
 
+  //TODO: increased segmentThreshold for l4 because of extra motor input?
+  //TODO: zip input motor into same sdr? zip inputs?
   object l4Layer extends L4Layer[L] {
     implicit val config = region.config.copy(columnHeight = numl4cells/*, burstCellDuration = 3, learningCellDuration = 1*/, maxDistalDendrites = maxDistalDendrites / 4)
 
@@ -89,7 +91,7 @@ class L4Region[L](implicit val config: CLA.Config[L],
   }
 
   object l3Layer extends L3Layer[L] {
-    implicit val config = region.config
+    implicit val config = region.config.copy(inputRangeSpreadPercent = region.config.inputRangeSpreadPercent * 2.0)
 
     val columns: IndexedSeq[L3Column[L]] =
       (0 until l4Input.segments.length).map { idx =>

@@ -29,24 +29,25 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredActivityPercent: Double = 0.04,
+      desiredActivityPercent: Double = 0.02,//0.04,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
-      inputWidth: Int = 128,
+      inputWidth: Int = 256,
       inputConnectedPercent: Double = 0.10,
       inputRangeSpreadPercent: Double = 0.20,
       overlapPercent: Double = 0.30, //percent of input connections per column
 
-      segmentThreshold: Int = 12,
-      seededDistalConnections: Int = 18,
+      segmentThresholdPercent: Double = 0.80, //percent of seededDistalPercent
+      seededDistalPercent: Double = 0.60, //percent of columns over desiredLocalActivity
       maxDistalDendrites: Int = 64,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
 
-      connectionThreshold: Double = 0.2,
+      connectionThreshold: Double = 0.8,
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
+      initialPermanenceVariance: Double = 0.3,
       learningCellDuration: Int = 1,//3, //in ticks
       burstCellDuration: Int = 1,
 
@@ -55,7 +56,7 @@ object CLA {
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 0.5,
+      dynamicInhibitionRadiusScale: Double = 1.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -65,6 +66,12 @@ object CLA {
     val inputRangeRadius = inputRangeSpreadPercent * inputWidth / 2.0
     val nonLocalizedInput = inputRangeSpreadPercent >= 1.0
     val desiredLocalActivity = math.ceil(regionWidth * desiredActivityPercent).toInt
+    val seededDistalConnections = ((1 + seededDistalPercent) * desiredLocalActivity).toInt
+    val segmentThreshold = (segmentThresholdPercent * seededDistalConnections).toInt
+
+    require(segmentThreshold >= desiredLocalActivity,
+      s"segmentThreshold($segmentThreshold) < desiredLocalActivity ($desiredLocalActivity). " +
+          "This may cause self-predicting loops in an area.")
 
     implicit val _topology = topology
 
@@ -73,7 +80,7 @@ object CLA {
     )
 
     def getRandomProximalPermanence = {
-      val s = connectionThreshold * 0.3 //10% variance
+      val s = connectionThreshold * initialPermanenceVariance
       val n = (s * 2 * math.random) - s
 
       //connectionThreshold / 2.0
@@ -81,11 +88,11 @@ object CLA {
     }
 
     def getRandomDistalPermanence = {
-      val s = connectionThreshold * 0.3 //10% variance
+      val s = connectionThreshold * initialPermanenceVariance
       val n = (s * 2 * math.random) - s
 
-      connectionThreshold / 2.0
-      //connectionThreshold + n
+      //connectionThreshold / 2.0
+      connectionThreshold + n
     }
     
     val numColumns = math.pow(regionWidth, topology.dims).toInt
@@ -94,7 +101,6 @@ object CLA {
   val DefaultConfig = Config()
   val ReducedConfig = DefaultConfig.copy(
     columnHeight = 16,
-    inputWidth = 180,
     regionWidth = 128
   )
 
@@ -153,13 +159,20 @@ object CLA {
 
     def scale(loc: Location, s: Double): Location = (loc * s).toInt
 
+    //radius as first std-dev [-1,+1]
+    /*def probabilityAt(radius: Double, rad: Double, cachedMax: Option[Double] = None): Double = {
+
+    }*/
+
     def uniqueNormalizedLocations(loc: Location,
         rad: Double, width: Int): Stream[Location] = {
-      val max = ExtraMath.normalPDF(0, σ = rad)
+      val variance = rad
+      val σ = math.sqrt(variance)
+      val max = ExtraMath.normalPDF(0, σ = σ)
 
       for {
         i <- (0 to (width / 2)).toStream
-        prob = ExtraMath.normalPDF(i, σ = rad) / max
+        prob = ExtraMath.normalPDF(i, σ = σ) / max
         x <- if(i == 0) Seq(0) else Seq(i, -i)
         if math.random < prob
       } yield x + loc

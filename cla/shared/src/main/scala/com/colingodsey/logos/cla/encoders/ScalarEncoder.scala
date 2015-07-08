@@ -10,20 +10,21 @@ import com.colingodsey.logos.cla.CLA
  * @param max - max value in the range
  */
 case class ScalarEncoder(val length: Int, size: Int,
-    min: Double = 0.0, max: Double = 1.0) {//extends CLA.Input {
+    min: Double = 0.0, max: Double = 1.0) { encoder =>
   val lengthMinusSize = length - size
+  val range = max - min
 
-  def encode(x: Double): CLA.Input = new AnyRef {
+  def encode(x0: Double): CLA.Input = new AnyRef {
     val (areaMax, areaMin) = {
-      val y = x - min
-      val value = math.max(0, y) / max
+      val x = if(x0 > max) max else if(x0 < min) min else x0
+      val value = (x - min) / range
       val a = (lengthMinusSize * value + size).toInt
       val b = (lengthMinusSize * value).toInt
 
       (a, b)
     }
 
-    def length = ScalarEncoder.this.length
+    def length = encoder.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
 
     def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
