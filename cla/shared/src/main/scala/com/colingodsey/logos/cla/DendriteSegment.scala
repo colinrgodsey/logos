@@ -91,7 +91,9 @@ final class DendriteSegment(
 
     ordinal = math.random
 
-    if(active) boost = 0.0
+    if(active) {
+      boost = 0.0
+    }
   }
 
   def dutyCycleUpdateRatio = config.segmentDutyCycleRatio

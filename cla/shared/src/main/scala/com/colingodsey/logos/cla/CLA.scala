@@ -92,7 +92,8 @@ object CLA {
       val n = (s * 2 * math.random) - s
 
       //connectionThreshold / 2.0
-      connectionThreshold + n
+      //connectionThreshold + n
+      connectionThreshold * 1.05
     }
     
     val numColumns = math.pow(regionWidth, topology.dims).toInt
@@ -100,7 +101,7 @@ object CLA {
 
   val DefaultConfig = Config()
   val ReducedConfig = DefaultConfig.copy(
-    columnHeight = 16,
+    //columnHeight = 16,
     regionWidth = 128
   )
 

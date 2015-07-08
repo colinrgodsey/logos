@@ -82,7 +82,7 @@ trait L3Layer[L] extends SequenceLayer {
 
   //TODO: multiple learning cells when bursting?
   def getLearningNodes: Stream[NeuralNode] = {
-    columns.toStream.sortBy { c =>
+    columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasPredicted, !c.wasActive, c.ordinal)
     }.map(_.learningCell)
   }
