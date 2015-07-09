@@ -90,7 +90,9 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPostPooler(): Unit = {
     cells.foreach(_.tickDown())
 
+    //TODO: only 1 cell? or many?
     if(active) cells.foreach(_.activateIfPredicted())
+    //if(active && learningCell.predictive) learningCell.activate(1)
 
     //TODO: wasPredicted only if active this round?
     wasPredicted = cells.exists(_.active)

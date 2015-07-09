@@ -84,6 +84,6 @@ trait L3Layer[L] extends SequenceLayer {
   def getLearningNodes: Stream[NeuralNode] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasPredicted, !c.wasActive, c.ordinal)
-    }.map(_.learningCell)
+    }.flatMap(_.cells.filter(_.active))/*.map(_.learningCell)*/
   }
 }
