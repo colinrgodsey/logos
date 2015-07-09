@@ -14,6 +14,7 @@ object DutyCycle {
 
 trait DutyCycle extends NeuralNode {
   private var _boost = 0.0
+  protected val permanentBoostOffset = math.random * 0.1
 
   def parent: DutyCycle.Booster
 
@@ -37,7 +38,7 @@ trait DutyCycle extends NeuralNode {
     val a = activation
 
     if(a < minThreshold) 0.0
-    else a * (1.0 + boost)
+    else a * (1.0 + boost) + permanentBoostOffset
   }
 
   def activeOverlap = if(active) overlap else 0.0
