@@ -90,8 +90,8 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
     //TODO: reinforce the next active one if this is full?
     if(!distalDendrite.active && !full) {
       distalDendrite.mostActive match {
-        case Some(segment) if segment.numConnections < config.seededDistalConnections =>
-          fillSegment(segment, column.layer.getLearningNodes(column))
+        /*case Some(segment) if segment.numConnections < config.seededDistalConnections =>
+          fillSegment(segment, column.layer.getLearningNodes(column))*/
         case _ =>
           addNewSegment()
       }
