@@ -50,11 +50,11 @@ trait L4Layer[L] extends SequenceLayer {
         .sortBy(c => (!c.feedForwardActive, -c.overlap, c.ordinal))*/
 
   def getLearningCells: Stream[Cell] =
-    columns.toStream.filter(_.active).map(_.learningCell)//flatMap(_.activeCells)
+    columns.toStream.filter(_.wasActive).map(_.learningCell)//flatMap(_.activeCells)
         .sortBy(_.activationOrdinal).reverse
 
   def getLearningMotorNodes = {
-    motorInput.segments.toStream.filter(_.active).sortBy(s => (-s.overlap, s.ordinal))
+    motorInput.segments.toStream.filter(_.wasActive).sortBy(_.activationOrdinal).reverse
   }
 
   def getInput: CLA.Input = {
@@ -83,7 +83,8 @@ trait L3Layer[L] extends SequenceLayer {
   //TODO: multiple learning cells when bursting?
   def getLearningNodes: Stream[NeuralNode] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
-      (!c.wasPredicted, !c.wasActive, c.overlap, c.ordinal)
-    }.flatMap(_.cells.filter(_.active))/*.map(_.learningCell)*/
+      (!c.wasPredicted, !c.wasActive, c.oldOverlap, c.ordinal)
+    }.flatMap(_.cells.filter(_.active))
+    //}.map(_.learningCell)
   }
 }

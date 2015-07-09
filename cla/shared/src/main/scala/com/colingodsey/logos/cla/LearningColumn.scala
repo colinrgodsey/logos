@@ -124,6 +124,8 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
 final class L3Column[L](val layer: L3Layer[L], val loc: L,
     val inputSegment: NeuralNode) extends LearningColumn { column =>
 
+  var oldOverlap = 0.0
+
   def boost = inputSegment match {
     case x: SDR => x.boost
     case _ => 0.0
@@ -135,6 +137,7 @@ final class L3Column[L](val layer: L3Layer[L], val loc: L,
 
   def update(): Unit = {
     wasActive = active
+    oldOverlap = overlap
     active = inputSegment.active
 
     //TODO: errr

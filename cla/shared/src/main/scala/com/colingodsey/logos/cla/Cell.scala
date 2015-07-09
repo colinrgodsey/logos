@@ -95,7 +95,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
         case _ =>
           addNewSegment()
       }
-
+    //TODO: maybe remove dendrites by activation amount, not activity
     } else if(full && distalDendrite.active) {
       val toRemove = distalDendrite.leastActiveDuty
 
