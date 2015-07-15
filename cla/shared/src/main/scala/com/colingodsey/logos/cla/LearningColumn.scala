@@ -70,8 +70,6 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
-
     val hasPredictive = cells.exists(_.predictive)
 
     //TODO: only learn one segment at a time?
@@ -89,6 +87,8 @@ trait LearningColumn extends MiniColumn { column =>
   //TODO: learning cell and sequence segments
   def temporalPostPooler(): Unit = {
     cells.foreach(_.tickDown())
+
+    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
 
     //TODO: only 1 cell? or many?
     if(active) cells.foreach(_.activateIfPredicted())
