@@ -41,7 +41,7 @@ trait L4Layer[L] extends SequenceLayer {
       }
     }
 
-    if(motorCellsStream.length < 4) Stream.empty
+    if(motorCellsStream.length < (config.segmentThreshold / 2)) Stream.empty
     else itr.toStream
   }
 
@@ -49,9 +49,12 @@ trait L4Layer[L] extends SequenceLayer {
     columns.toStream.filter(c => c.feedForwardActive || c.active)
         .sortBy(c => (!c.feedForwardActive, -c.overlap, c.ordinal))*/
 
-  def getLearningCells: Stream[Cell] =
-    columns.toStream.filter(_.wasActive).map(_.learningCell)//flatMap(_.activeCells)
-        .sortBy(_.activationOrdinal).reverse
+  def getLearningCells: Stream[Cell] = {
+    columns.toStream.filter(_.wasActive).sortBy { c =>
+      (!c.wasPredicted, !c.wasActive, c.oldOverlap, c.ordinal)
+    }.flatMap(_.cells.filter(_.active))
+    //}.map(_.learningCell)
+  }
 
   def getLearningMotorNodes = {
     motorInput.segments.toStream.filter(_.wasActive).sortBy(_.activationOrdinal).reverse
@@ -59,7 +62,7 @@ trait L4Layer[L] extends SequenceLayer {
 
   def getInput: CLA.Input = {
     (for {
-      column <- columns.toStream
+      column <- columns.iterator
       cell <- column.cells
     } yield cell.active).toIndexedSeq
   }

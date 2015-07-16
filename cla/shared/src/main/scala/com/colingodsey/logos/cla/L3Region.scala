@@ -85,13 +85,13 @@ class L4Region[L](implicit val config: CLA.Config[L],
 
       columns.foreach(_.update())
       VM.distributedExec(desiredLocalActivity / numWorkers,
-        activeColumns.toIndexedSeq)(_.temporalPrePooler())
-      activeColumns.foreach(_.temporalPostPooler())
+        columns.toIndexedSeq)(_.temporalPrePooler())
+      columns.foreach(_.temporalPostPooler())
     }
   }
 
   object l3Layer extends L3Layer[L] {
-    implicit val config = region.config.copy(inputRangeSpreadPercent = region.config.inputRangeSpreadPercent * 2.0)
+    implicit val config = region.config.copy()
 
     val columns: IndexedSeq[L3Column[L]] =
       (0 until l4Input.segments.length).map { idx =>
@@ -104,8 +104,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
     def update(): Unit = {
       columns.foreach(_.update())
       VM.distributedExec(desiredLocalActivity / numWorkers,
-        activeColumns.toIndexedSeq)(_.temporalPrePooler())
-      activeColumns.foreach(_.temporalPostPooler())
+        columns.toIndexedSeq)(_.temporalPrePooler())
+      columns.foreach(_.temporalPostPooler())
     }
 
     //def input(idx: Int): Boolean
@@ -119,6 +119,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
     inputLayer.update(input) //spatial pooling
     motorInput.update(motor) //spatial pooling
     l4Layer.update()
+    if(math.random < 0.01)
+      println(l4Layer.getInput.toSeq)
     l4Input.update(l4Layer.getInput)
     l3Layer.update()
   }

@@ -49,7 +49,7 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
     _active = true
     //predictive = false
     //TODO: reset, or min?
-    activeForTicks = math.min(forTicks, activeForTicks)
+    activeForTicks = math.max(forTicks, activeForTicks)
   }
 
   //TODO: count receptive, or no?
@@ -103,7 +103,9 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
     }
   }
 
-  def activateIfPredicted(): Unit = {
+  def activateIfPredicted(): Boolean = {
     if (predictive) activate(learningCellDuration)
+
+    predictive
   }
 }

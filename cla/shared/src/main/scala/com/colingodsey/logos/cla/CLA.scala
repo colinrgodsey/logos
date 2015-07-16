@@ -34,8 +34,8 @@ object CLA {
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 256,
-      inputConnectedPercent: Double = 0.10,
-      inputRangeSpreadPercent: Double = 0.20,
+      inputConnectedPercent: Double = 0.05,
+      inputRangeSpreadPercent: Double = 0.15,
       overlapPercent: Double = 0.30, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
@@ -48,7 +48,7 @@ object CLA {
       permanenceInc: Double = 0.1,
       permanenceDec: Double = 0.05,
       initialPermanenceVariance: Double = 0.3,
-      learningCellDuration: Int = 1,//3, //in ticks
+      learningCellDuration: Int = 3, //in ticks
       burstCellDuration: Int = 1,
 
       boostIncr: Double = 0.05,
@@ -167,16 +167,22 @@ object CLA {
 
     def uniqueNormalizedLocations(loc: Location,
         rad: Double, width: Int): Stream[Location] = {
-      val variance = rad
-      val σ = math.sqrt(variance)
-      val max = ExtraMath.normalPDF(0, σ = σ)
 
-      for {
-        i <- (0 to (width / 2)).toStream
-        prob = ExtraMath.normalPDF(i, σ = σ) / max
-        x <- if(i == 0) Seq(0) else Seq(i, -i)
-        if math.random < prob
-      } yield x + loc
+      def inner: Stream[Location] = {
+        val σ = rad
+        val iMax = 0.90/*1.0*/ / ExtraMath.normalPDF(0, σ = σ)
+
+        val outStream = for {
+          i <- (0 to (width / 2)).toStream
+          prob = ExtraMath.normalPDF(i, σ = σ) * iMax
+          x <- if (i == 0) Seq(0) else Seq(i, -i)
+          if math.random < prob
+        } yield x + loc
+
+        outStream append inner
+      }
+
+      inner.distinct
     }
   }
 

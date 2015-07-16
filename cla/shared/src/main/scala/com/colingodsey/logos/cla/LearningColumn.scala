@@ -70,7 +70,7 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    val hasPredictive = cells.exists(_.predictive)
+    val hasPredictive = true//cells.exists(_.predictive)
 
     //TODO: only learn one segment at a time?
     //TODO: only new synapses to learning cells?
@@ -88,14 +88,18 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPostPooler(): Unit = {
     cells.foreach(_.tickDown())
 
-    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
-
     //TODO: only 1 cell? or many?
-    if(active) cells.foreach(_.activateIfPredicted())
-    //if(active && learningCell.predictive) learningCell.activate(1)
+    if(active) {
+      val nPredictive = cells.count(_.activateIfPredicted())
+      //if(active && learningCell.predictive) learningCell.activate(1)
 
-    //TODO: wasPredicted only if active this round?
-    wasPredicted = cells.exists(_.active)
+      //TODO: wasPredicted only if active this round?
+      wasPredicted = nPredictive > 0
+    } else {
+      wasPredicted = false
+    }
+
+    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
 
     //burst cells if not predicted
     if (!wasPredicted && active)
@@ -105,6 +109,8 @@ trait LearningColumn extends MiniColumn { column =>
 
 final class L4Column[L](val layer: L4Layer[L], val loc: L,
     val inputSegment: NeuralNode) extends LearningColumn { column =>
+
+  var oldOverlap = 0.0
 
   def boost = inputSegment match {
     case x: SDR => x.boost
@@ -117,6 +123,7 @@ final class L4Column[L](val layer: L4Layer[L], val loc: L,
 
   def update(): Unit = {
     wasActive = active
+    oldOverlap = overlap
     active = inputSegment.active
   }
 }
