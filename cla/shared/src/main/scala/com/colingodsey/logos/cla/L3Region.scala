@@ -117,8 +117,7 @@ class L4Region[L](implicit val config: CLA.Config[L],
     inputLayer.update(input) //spatial pooling
     motorInput.update(motor) //spatial pooling
     l4Layer.update()
-    if(math.random < 0.01)
-      println(l4Layer.getInput.toSeq)
+    //if(math.random < 0.01) println(l4Layer.getInput.toSeq)
     l4Input.update(l4Layer.getInput)
     l3Layer.update()
   }

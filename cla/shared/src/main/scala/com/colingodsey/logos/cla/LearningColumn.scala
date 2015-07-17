@@ -99,7 +99,11 @@ trait LearningColumn extends MiniColumn { column =>
       wasPredicted = false
     }
 
-    selectedLearningCell = Some(cells.maxBy(_.activationOrdinal))
+    selectedLearningCell = Some {
+      val max = cells.maxBy(_.activationOrdinal)
+
+      if(max.active) max else randomCell
+    }
 
     //burst cells if not predicted
     if (!wasPredicted && active)

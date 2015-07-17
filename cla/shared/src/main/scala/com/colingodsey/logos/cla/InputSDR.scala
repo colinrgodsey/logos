@@ -4,6 +4,7 @@ import com.colingodsey.logos.collections.RollingAverage
 
 import scala.concurrent.ExecutionContext
 
+//TODO: use sigmoid value for overlap sum
 class InputSDR[L](implicit val config: CLA.Config[L],
     ec: ExecutionContext) extends DutyCycle.Booster { inputLayer =>
   import com.colingodsey.logos.cla.CLA._
@@ -52,7 +53,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
     spatialPooler()
 
-    inhibitionRadiusAverage += averageReceptiveFieldRadius * dynamicInhibitionRadiusScale
+    inhibitionRadiusAverage += averageReceptiveFieldRadius * dynamicInhibitionRadiusScale / inputWidth * regionWidth
   }
 
   def inhibitionRadius: Double = math.max(inhibitionRadiusAverage.toDouble, 3)
@@ -62,12 +63,11 @@ class InputSDR[L](implicit val config: CLA.Config[L],
     var nActive = 0
     for(i <- 0 until segments.length) {
       val seg = segments(i)
-      val loc = topology.columnLocationFor(i)
 
       //TODO: filter on active or not?
       if(seg.active) {
         nActive += 1
-        s += seg.receptiveRadius(loc)
+        s += seg.receptiveRadius[topology.Location]
       }
     }
 
@@ -94,8 +94,8 @@ class InputSDR[L](implicit val config: CLA.Config[L],
   protected def spatialPooler(): Unit = {
     //clear activation state and update input
     segments.foreach(_.update())
-
-    if(dynamicInhibitionRadius && inhibitionRadius < (regionWidth / 2)) {
+println(inhibitionRadius)
+    if(dynamicInhibitionRadius && inhibitionRadius < (inputWidth / 2)) {
       for(i <- 0 until segments.length) {
         val seg = segments(i)
         val loc = topology.columnLocationFor(i)

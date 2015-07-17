@@ -34,9 +34,9 @@ object CLA {
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 256,
-      inputConnectedPercent: Double = 0.05,
-      inputRangeSpreadPercent: Double = 0.25,//0.15,
-      overlapPercent: Double = 0.30, //percent of input connections per column
+      inputConnectedPercent: Double = 0.10,
+      inputRangeSpreadPercent: Double = 0.15,//0.25,//0.15,
+      overlapPercent: Double = 0.10, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
       seededDistalPercent: Double = 0.60, //percent of columns over desiredLocalActivity
@@ -56,7 +56,7 @@ object CLA {
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 1.0,
+      dynamicInhibitionRadiusScale: Double = 2.0,
 
       specificNumWorkers: Option[Int] = None
   ) {

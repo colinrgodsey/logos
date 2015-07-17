@@ -28,7 +28,7 @@ final class DendriteSegment(
 
   protected var connections = synapses.toArray
 
-  def receptiveRadius[L](center: L)(implicit cfg: CLA.Config[L]): Double = {
+  def receptiveRadius[L](implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
 
     val locations = connections.iterator.flatMap {
