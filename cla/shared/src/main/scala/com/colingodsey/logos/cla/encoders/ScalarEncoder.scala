@@ -28,7 +28,35 @@ case class ScalarEncoder(val length: Int, size: Int,
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
 
     def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
-    def iterator = Iterator.from(0) take length map apply
+    def iterator = Iterator from 0 take length map apply
+
+    override def toString = toSeq.map(x => if(x) 1 else 0).mkString
+  }
+}
+
+case class WeightedScalarEncoder(val length: Int, maxSize: Int,
+    min: Double = 0.0, max: Double = 1.0) { encoder =>
+  val range = max - min
+
+  def encode(x0: Double, scale: Double): CLA.Input = new AnyRef {
+    val (areaMax, areaMin) = {
+      val x = if(x0 > max) max else if(x0 < min) min else x0
+      val value = (x - min) / range
+
+      val size = math.round(maxSize * scale).toInt
+      val lengthMinusSize = length - size
+
+      val a = (lengthMinusSize * value + size).toInt
+      val b = (lengthMinusSize * value).toInt
+
+      (a, b)
+    }
+
+    def length = encoder.length
+    def apply(idx: Int) = idx < areaMax && idx >= areaMin
+
+    def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
+    def iterator = Iterator from 0 take length map apply
 
     override def toString = toSeq.map(x => if(x) 1 else 0).mkString
   }

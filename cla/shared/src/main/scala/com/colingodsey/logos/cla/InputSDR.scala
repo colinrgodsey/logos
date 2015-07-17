@@ -79,7 +79,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
   def localSpatialPooler(segment: DendriteSegment, loc: topology.Location): Unit =
     if(segment.overlap > 0) {
-      val sorted = neighborsIn(loc, inhibitionRadius).toStream.
+      val sorted = neighborsIn(loc, inhibitionRadius).toStream.filter(_ != segment).
           map(_.overlap).filter(_ > 0).sortBy(-_)
 
       val min = if(sorted.isEmpty) 0
@@ -87,7 +87,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
       segment.active = {
         val o = segment.overlap
-        o >= min && o > 0
+        o > min && o > 0
       }
     } else segment.active = false
 

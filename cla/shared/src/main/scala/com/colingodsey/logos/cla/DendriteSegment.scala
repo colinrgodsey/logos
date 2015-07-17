@@ -3,6 +3,7 @@ package com.colingodsey.logos.cla
 import com.colingodsey.logos.cla.DutyCycle.Booster
 import com.colingodsey.logos.collections.RollingAverage
 
+//TODO: concat segments? can form SDRs of 2 sets of inputs, and concat segments
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
     val parent: DutyCycle.Booster,
@@ -17,8 +18,8 @@ final class DendriteSegment(
   var potentialActivation = 0
   var receptive = 0
 
-  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
-  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 1.0
+  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random) += math.random
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += math.random
   //var sequenceSegment = false
 
   var ordinal = math.random
@@ -29,13 +30,16 @@ final class DendriteSegment(
 
   def receptiveRadius[L](center: L)(implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
-    connections.iterator.map {
+
+    val locations = connections.iterator.flatMap {
       case NodeAndPermanence(node: topology.LocalNeuralNode, p) if p > connectionThreshold =>
-        topology.distance(center, node.loc)
+        Some(node.loc)
       case NodeAndPermanence(node: topology.LocalNeuralNode, _) =>
-        0.0
+        None
       case x => sys.error("unexpected non-locale synpase " + x)
-    }.max
+    }
+
+    topology.radiusOfLocations(locations)
   }
 
   /*

@@ -56,7 +56,7 @@ object CLA {
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 1.0,
+      dynamicInhibitionRadiusScale: Double = 2.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -129,6 +129,7 @@ object CLA {
     def normalizedRandomLocations(loc: Location, rad: Double, width: Int,
         r: Random = Random): Stream[Location]
     def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location]
+    def radiusOfLocations(locations: TraversableOnce[L]): Double
 
     def columnIndexesNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Int] =
       locationsNear(loc, rad) map columnIndexFor
@@ -183,6 +184,18 @@ object CLA {
       }
 
       inner.distinct
+    }
+
+    def radiusOfLocations(locations: TraversableOnce[Location]): Double = {
+      var min = Double.MaxValue
+      var max = 0
+
+      locations.foreach { location =>
+        if(location < min) min = location
+        if(location > max) max = location
+      }
+
+      (max - min) / 2.0
     }
   }
 

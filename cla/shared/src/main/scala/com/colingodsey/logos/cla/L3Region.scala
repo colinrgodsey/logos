@@ -73,8 +73,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
         new L4Column[L](this, loc, segment)
       }.toIndexedSeq
 
-    def maxDutyCycle: Double = region.maxDutyCycle
-    def inhibitionRadius = l4Input.inhibitionRadius
+    def maxDutyCycle = inputLayer.maxDutyCycle
+    def inhibitionRadius = inputLayer.inhibitionRadius
 
     def motorInput: InputSDR[L] = region.motorInput
 
@@ -109,11 +109,9 @@ class L4Region[L](implicit val config: CLA.Config[L],
     }
 
     //def input(idx: Int): Boolean
-    def maxDutyCycle: Double = region.maxDutyCycle
-    def inhibitionRadius = inputLayer.inhibitionRadius
+    def maxDutyCycle = l4Input.maxDutyCycle
+    def inhibitionRadius = l4Input.inhibitionRadius
   }
-
-  def maxDutyCycle = inputLayer.maxDutyCycle
 
   def update(input: Input, motor: Input): Unit = {
     inputLayer.update(input) //spatial pooling
