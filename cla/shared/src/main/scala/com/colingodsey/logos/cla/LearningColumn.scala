@@ -33,7 +33,8 @@ trait LearningColumn extends MiniColumn { column =>
   val uuid = math.random
 
   var active = false
-  @volatile var selectedLearningCell: Option[Cell] = None
+  @volatile private var selectedLearningCell: Option[Cell] = None
+  @volatile private var nextLearningCell: Option[Cell] = None
   var wasPredicted = false
   var wasActive = false
 
@@ -72,15 +73,21 @@ trait LearningColumn extends MiniColumn { column =>
 
     val hasPredictive = true//cells.exists(_.predictive)
 
+    nextLearningCell = {
+      val max = cells.maxBy(_.activationOrdinal)
+
+      if(max.active) Some(max) else None
+    }
+
     //TODO: only learn one segment at a time?
     //TODO: only new synapses to learning cells?
     if(hasPredictive) {
       //TODO: most predictive only, or all predictive?
       //cells.filter(_.predictive).foreach(_.reinforceDistal())
-      learningCell.reinforceDistal()
+      nextLearningCell.getOrElse(randomCell).reinforceDistal()
     } else {
       //only reinforce the 'learning cell' here (max predication)
-      learningCell.reinforceDistal()
+      nextLearningCell.getOrElse(randomCell).reinforceDistal()
     }
   }
 
@@ -99,11 +106,7 @@ trait LearningColumn extends MiniColumn { column =>
       wasPredicted = false
     }
 
-    selectedLearningCell = Some {
-      val max = cells.maxBy(_.activationOrdinal)
-
-      if(max.active) max else randomCell
-    }
+    selectedLearningCell = nextLearningCell
 
     //burst cells if not predicted
     if (!wasPredicted && active)
