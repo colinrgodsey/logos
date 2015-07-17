@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>CLA UI</title>
+    <script type="text/javascript" src="/workbench.js"></script>
+    <script type="text/javascript" src="../logos-cla-ui-jsdeps.js"></script>
+    <script type="text/javascript" src="../logos-cla-ui-fastopt.js"></script>
+
+    <style type="text/css">
+        #testflot {
+            width: 600px;
+            height:300px;
+        }
+
+        #inputFunction {
+            width: 300px;
+            height: 300px;
+        }
+
+        div.chart {
+            display: inline-block;
+        }
+
+        div.chart title {
+            display: block;
+        }
+    </style>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            com.colingodsey.logos.cla.ui.UI().main();
+        });
+    </script>
+</head>
+<body>
+    <div class="chart">
+        <title>Active Duty</title>
+        <canvas id="activeDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>Overlap Duty</title>
+        <canvas id="overlapDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>Anomaly</title>
+        <canvas id="anomalyChart" width="400" height="400"></canvas>
+    </div>
+    <textarea id="inputFunction" type="text/javascript" rows="20" cols="100">
+var sinSteps = 30;
+var sinSteps2 = 70;
+var sinSteps3 = 130;
+
+var t = (i % sinSteps) / sinSteps;
+var t2 = (i % sinSteps2) / sinSteps2;
+var t3 = (i % sinSteps3) / sinSteps3;
+
+var s =  Math.sin(t  * Math.PI * 2) / 2.0 + 0.5;
+var s2 = Math.sin(t2 * Math.PI * 2) / 2.0 + 0.5;
+var s3 = Math.sin(t3 * Math.PI * 2) / 2.0 + 0.5;
+
+return s;
+//return (s + s2) / 2.0;
+//return (s + s2 + s3) / 3.0;
+    </textarea>
+    <span id="ticks"></span>
+</body>
+</html>
