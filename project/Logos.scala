@@ -7,6 +7,8 @@ import ScalaJSPlugin.autoImport._
 import com.lihaoyi.workbench.Plugin._
 
 object Logos {
+  def userCredentials = (Path.userHome / ".ivy2" / "credentials" ** "*").filter(_.isFile).get.map(Credentials(_))
+
   def buildSettings = Seq(
     name := "logos",
     scalaVersion := "2.11.4",
@@ -23,6 +25,8 @@ object Logos {
     version in ThisBuild <<= version in LocalRootProject,
     organization in ThisBuild <<= organization in LocalRootProject,
     scalaVersion in ThisBuild <<= scalaVersion in LocalRootProject,
+
+    credentials ++= userCredentials,
 
     pomExtra in ThisBuild :=
       <url>https://github.com/colinrgodsey/logos</url>
@@ -52,8 +56,14 @@ object Logos {
   )
 
   def claUISettings = workbenchSettings ++ Seq(
-    libraryDependencies += "be.doeraene" %%% "scalajs-jquery" % "0.8.0",
-    libraryDependencies += "be.doeraene" %%% "scalajs-pickling-core" % "0.4.0",
+    resolvers += "mmreleases" at
+      "https://artifactory.mediamath.com/artifactory/libs-release",
+
+    jsDependencies += "org.webjars" % "jquery" % "2.1.3" / "2.1.3/jquery.js",
+
+    libraryDependencies += "com.mediamath" %%% "scala-json" % "colin-SNAPSHOT",
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.8.0",
+    //libraryDependencies += "be.doeraene" %%% "scalajs-jquery" % "0.8.0",
     libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.7.0",
 
     skip in packageJSDependencies := false,
