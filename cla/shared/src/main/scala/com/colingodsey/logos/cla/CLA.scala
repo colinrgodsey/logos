@@ -35,7 +35,7 @@ object CLA {
 
       inputWidth: Int = 256,
       inputConnectedPercent: Double = 0.05,
-      inputRangeSpreadPercent: Double = 0.15,
+      inputRangeSpreadPercent: Double = 0.25,//0.15,
       overlapPercent: Double = 0.30, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
@@ -56,7 +56,7 @@ object CLA {
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 2.0,
+      dynamicInhibitionRadiusScale: Double = 1.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -171,7 +171,7 @@ object CLA {
 
       def inner: Stream[Location] = {
         val σ = rad
-        val iMax = 0.90/*1.0*/ / ExtraMath.normalPDF(0, σ = σ)
+        val iMax = rad//0.80/*1.0*/ / ExtraMath.normalPDF(0, σ = σ)
 
         val outStream = for {
           i <- (0 to (width / 2)).toStream
