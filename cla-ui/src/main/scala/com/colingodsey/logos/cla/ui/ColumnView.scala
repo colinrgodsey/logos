@@ -48,14 +48,14 @@ class ColumnView(sel: JQuery) {
       context.beginPath()
       context.arc(center.x, center.y, cellRadius, 0, 2 * Math.PI, false)
       context.fillStyle = cell.active match {
-        case true if column.active => "green"
+        case true if column.active => "blue"
         case true => "yellow"
         //case _ if cell.predictive => "red"
-        case _ => "black"
+        case _ => "white"
       }
       context.fill()
       context.lineWidth = 2
-      context.strokeStyle = "white"
+      context.strokeStyle = "black"
       context.stroke()
     }
 

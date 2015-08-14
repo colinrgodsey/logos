@@ -74,10 +74,19 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    val hasPredictive = true//cells.exists(_.predictive)
+    val hasPredictive = cells.exists(_.predictive)
 
-    //only select new learning cell once old one is predicted
-    nextLearningCell = if(learningCell.predictive) {
+    /*
+    STICKY CELL HYPOTHESIS
+    is it best to stick with one learning cell per column until
+    it becomes relevent. This is because the learning cell is selected
+    to learn prediction patterns as well as selected for predicting
+    the next pattern. Therefor it is important this cell becomes
+    relevent at some point.
+     */
+
+    //only select new learning cell once old one is predicted or new one predicted
+    nextLearningCell = if(learningCell.predictive || hasPredictive) {
       val max = cells.maxBy(_.activationOrdinal)
 
       Some(max)
@@ -114,15 +123,15 @@ trait LearningColumn extends MiniColumn { column =>
       nPredictive > 0
     } else false
 
-    if(active) {
-      selectedLearningCell = nextLearningCell
-      selectedLearningCell.foreach(_.activateIfPredicted())
-    }
-
-
     //burst cells if not predicted
     if (!wasPredicted && active)
       cells.foreach(_.activate(burstCellDuration))
+
+    if(active) {
+      selectedLearningCell = nextLearningCell
+      //selectedLearningCell.foreach(_.activateIfPredicted())
+      selectedLearningCell.foreach(_.activate(learningCellDuration))
+    }
   }
 }
 

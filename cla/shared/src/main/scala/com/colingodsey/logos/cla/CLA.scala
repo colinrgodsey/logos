@@ -29,7 +29,7 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredActivityPercent: Double = 0.08,
+      desiredActivityPercent: Double = 0.06,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
@@ -39,7 +39,7 @@ object CLA {
       overlapPercent: Double = 0.10, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
-      seededDistalPercent: Double = 0.20, //percent of columns over desiredLocalActivity
+      seededDistalPercent: Double = 0.10, //percent of columns over desiredLocalActivity
       maxDistalDendrites: Int = 64,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,

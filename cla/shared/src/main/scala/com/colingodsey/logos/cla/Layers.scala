@@ -53,8 +53,8 @@ trait L4Layer[L] extends SequenceLayer {
   def getLearningCells: Stream[Cell] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasActive, !c.wasPredicted, c.oldOverlap, c.ordinal)
-    }.flatMap(_.cells.filter(_.active))
-    //}.map(_.learningCell).filter(_.active)
+    //}.flatMap(_.cells.filter(_.active))
+    }.map(_.learningCell).filter(_.active)
   }
 
   def getLearningMotorNodes = {
@@ -88,7 +88,7 @@ trait L3Layer[L] extends SequenceLayer {
   def getLearningNodes: Stream[NeuralNode] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasActive, !c.wasPredicted, c.oldOverlap, c.ordinal)
-    }.flatMap(_.cells.filter(_.active))
-    //}.map(_.learningCell).filter(_.active)
+    //}.flatMap(_.cells.filter(_.active))
+    }.map(_.learningCell).filter(_.active)
   }
 }

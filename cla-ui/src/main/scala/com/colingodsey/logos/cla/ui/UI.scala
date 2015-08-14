@@ -128,8 +128,8 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
   var scoreBuffer = List[Double]()
 
   val encoder = new ScalarEncoder(config.inputWidth, config.minOverlap + 5)
-  val region = new L4Region
-  //val region = new L3Region
+  //val region = new L4Region
+  val region = new L3Region
   val tickDelay = 0.millis
   var ticks = 0
   var lastFunction = ""

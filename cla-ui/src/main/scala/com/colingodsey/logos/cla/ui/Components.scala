@@ -70,7 +70,7 @@ object Scheduler {
       isCanceled = true
     }
 
-    def cancel(): Unit = {
+    def cancel(): Unit = if(!isCanceled) {
       js.timers.clearTimeout(id)
       isCanceled = true
     }
@@ -82,7 +82,7 @@ object Scheduler {
       isCanceled = true
     }
 
-    def cancel(): Unit = {
+    def cancel(): Unit = if(!isCanceled) {
       js.timers.clearInterval(id)
       isCanceled = true
     }
@@ -102,7 +102,7 @@ object Scheduler {
       }
     }
 
-    def cancel(): Unit = {
+    def cancel(): Unit = if(!isCanceled) {
       js.timers.clearTimeout(id)
       isCanceled = true
     }

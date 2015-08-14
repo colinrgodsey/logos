@@ -78,21 +78,22 @@ trait Mailbox {
   protected def newAskPromise(implicit to: Timeout) = {
     val prom = Promise[Any]()
     val id = idCounter.toString
-    var timerIdOpt: Option[js.timers.SetTimeoutHandle] = None
+    var timerIdOpt: Option[Scheduler.Cancelable] = None
 
     idCounter += 1
 
     responseMap += id -> prom
 
-    timerIdOpt = Some(js.timers.setTimeout(to.to) {
+    timerIdOpt = Some(Scheduler.scheduleOnce(to.to) {
       prom tryComplete Try {
         sys.error("Timeout failed after " + to.to)
       }
+      timerIdOpt.foreach(_.cancel())
       timerIdOpt = None
     })
 
     prom.future.onComplete { _ =>
-      timerIdOpt.foreach(js.timers.clearTimeout)
+      timerIdOpt.foreach(_.cancel())
       timerIdOpt = None
       responseMap -= id
     }
