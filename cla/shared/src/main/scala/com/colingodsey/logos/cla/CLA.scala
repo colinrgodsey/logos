@@ -29,7 +29,7 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredActivityPercent: Double = 0.04,
+      desiredActivityPercent: Double = 0.08,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
@@ -39,7 +39,7 @@ object CLA {
       overlapPercent: Double = 0.10, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
-      seededDistalPercent: Double = 0.60, //percent of columns over desiredLocalActivity
+      seededDistalPercent: Double = 0.20, //percent of columns over desiredLocalActivity
       maxDistalDendrites: Int = 64,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
@@ -66,12 +66,12 @@ object CLA {
     val inputRangeRadius = inputRangeSpreadPercent * inputWidth / 2.0
     val nonLocalizedInput = inputRangeSpreadPercent >= 1.0
     val desiredLocalActivity = math.ceil(regionWidth * desiredActivityPercent).toInt
-    val seededDistalConnections = ((1 + seededDistalPercent) * desiredLocalActivity).toInt
-    val segmentThreshold = (segmentThresholdPercent * seededDistalConnections).toInt
+    val seededDistalConnections = math.ceil((1 + seededDistalPercent) * desiredLocalActivity + 1).toInt
+    val segmentThreshold = math.ceil(segmentThresholdPercent * seededDistalConnections).toInt
 
-    require(segmentThreshold >= desiredLocalActivity,
+    /*require(segmentThreshold >= desiredLocalActivity,
       s"segmentThreshold($segmentThreshold) < desiredLocalActivity ($desiredLocalActivity). " +
-          "This may cause self-predicting loops in an area.")
+          "This may cause self-predicting loops in an area.")*/
 
     implicit val _topology = topology
 
@@ -216,7 +216,7 @@ object CLA {
       x
     }
 
-    //1st standard deviation. 70% within rad
+    //1st standard deviation. 60% within rad
     def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
       val x: Location = (r.randomNormal * rad + loc).toInt
 

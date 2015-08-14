@@ -5,11 +5,11 @@ import org.scalajs.{dom => window}
 import org.scalajs.dom.ext.{Color => DOMColor}
 import org.scalajs.jquery.{JQuery, JQueryStatic}
 
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.concurrent.JSExecutionContext
 import scala.scalajs.js
-import scala.util.Random
+import scala.util.{Failure, Success, Random}
 
 
 object DOMExt {
@@ -54,6 +54,58 @@ object DOMExt {
     }
 
     p.future
+  }
+}
+
+object Scheduler {
+  trait Cancelable {
+    def cancel(): Unit
+
+    private[Scheduler] var isCanceled = false
+  }
+
+  def scheduleOnce(dur: FiniteDuration)(f: => Unit): Cancelable = new Cancelable {
+    private val id = js.timers.setTimeout(dur) {
+      if(!isCanceled) f
+      isCanceled = true
+    }
+
+    def cancel(): Unit = {
+      js.timers.clearTimeout(id)
+      isCanceled = true
+    }
+  }
+
+  def scheduleEvery(every: FiniteDuration)(f: => Unit): Cancelable = new Cancelable {
+    private val id = js.timers.setInterval(every) {
+      if(!isCanceled) f
+      isCanceled = true
+    }
+
+    def cancel(): Unit = {
+      js.timers.clearInterval(id)
+      isCanceled = true
+    }
+  }
+
+  def scheduleEvenly(dur: FiniteDuration)(f: => Future[_])(implicit ec: ExecutionContext): Cancelable = new Cancelable {
+    private var id = js.timers.setTimeout(dur)(inner)
+
+    def inner(): Unit = if(!isCanceled) {
+      val fut = f
+
+      fut.onComplete {
+        case Success(_) =>
+          id = js.timers.setTimeout(dur)(inner)
+        case Failure(t) =>
+          t.printStackTrace()
+      }
+    }
+
+    def cancel(): Unit = {
+      js.timers.clearTimeout(id)
+      isCanceled = true
+    }
   }
 }
 

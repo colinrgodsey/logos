@@ -1,5 +1,6 @@
 package com.colingodsey.logos.cla.ui
 
+import com.colingodsey.logos.cla.ui.ColumnView.Data
 import com.colingodsey.logos.cla.{L4Region, LearningColumn, L3Region, CLA}
 import com.colingodsey.logos.cla.encoders.ScalarEncoder
 import com.colingodsey.logos.collections.Vec3
@@ -20,7 +21,8 @@ import js.Dynamic.global
 
 import org.scalajs.dom.ext.{Color => DOMColor}
 
-import scala.util.{Failure, Success, Random}
+import scala.util.control.NonFatal
+import scala.util.{Try, Failure, Success, Random}
 
 object BrainMain extends Worker()(JSExecutionContext.queue) with BaseWebWorkerMain {
   import Worker._
@@ -32,6 +34,10 @@ object BrainMain extends Worker()(JSExecutionContext.queue) with BaseWebWorkerMa
   def receive: PartialFunction[Any, Any] = {
     case StartRun(f) => startRun(f)
     case GetStats => getUIStats
+    case Start => start()
+    case Stop => stop()
+    case Tick => tick()
+    case GetColumnView => getColumnView()
   }
 }
 
@@ -54,6 +60,15 @@ class WebWorker(implicit ec: ExecutionContext) extends BaseWebWorker with Worker
     }
 
   def receive: PartialFunction[Any, Any] = PartialFunction.empty
+
+  def start() = WorkerRef ! Start
+  def stop() = WorkerRef ! Stop
+  def tick() = WorkerRef ! Tick
+
+  def getColumnView(): Future[Data] =
+    (WorkerRef ? GetColumnView) map {
+      case x: Data => x
+    }
 }
 
 object Worker {
@@ -70,21 +85,38 @@ object Worker {
     implicit val acc = ObjectAccessor.of[RunStats]
   }
 
+  case object Stop
+  case object Start
+  case object Tick
+  case object GetColumnView
+
   trait Run {
+    def tick(): Unit
     def cancel(): Unit
   }
 
   trait Interface {
     def startRun(func: String): Unit
     def getUIStats: Future[RunStats]
+    def stop(): Unit
+    def start(): Unit
+    def tick(): Unit
+    def getColumnView(): Future[ColumnView.Data]
   }
 
   def registerPickling(): Unit = {
+    import ColumnView.columnAcc
+
     Mailbox.register()
 
     Mailbox.registry.addAccessor[RunStats]
     Mailbox.registry.addAccessor[StartRun]
+    Mailbox.registry.addAccessor[ColumnView.Data]
     Mailbox.registry.addSingleton(GetStats)
+    Mailbox.registry.addSingleton(Stop)
+    Mailbox.registry.addSingleton(Start)
+    Mailbox.registry.addSingleton(Tick)
+    Mailbox.registry.addSingleton(GetColumnView)
   }
 }
 
@@ -100,27 +132,30 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
   //val region = new L3Region
   val tickDelay = 0.millis
   var ticks = 0
+  var lastFunction = ""
 
   def startRun(jsFunctionBody: String): Unit = {
     currentRun.foreach(_.cancel())
     currentRun = None
+    lastFunction = jsFunctionBody
 
     println("starting run....")
 
     val running = new Run {
       ticks = 0
       var running = false
-      val deadline = Deadline.now + 40.seconds
+      val deadline = Deadline.now + 5.minutes
 
       val jsFunction = js.Dynamic.newInstance(global.Function)(js.Array("i"), jsFunctionBody).asInstanceOf[js.Function1[Double, Double]]
 
-      def tick(): Unit = if(running) try {
+      def tick(): Unit = tick(force = true)
+
+      def tick(force: Boolean): Unit = if(running || force) try {
         val r = jsFunction(ticks)
 
         val started = Deadline.now
 
-        while(Deadline.now - started < 10.millis) {
-
+        def inner(): Unit = {
           region.update(encoder.encode(r / 2.0))
 
           scoreBuffer = region.l3Layer.anomalyScore +: scoreBuffer
@@ -128,10 +163,14 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
           ticks += 1
         }
 
+        if(force) inner()
+        else while(Deadline.now - started < 10.millis) inner()
+
         if(ticks > 100000) cancel()
         if(deadline.isOverdue) cancel()
 
-        timerFuture(tickDelay).flatMap(_ => Future(tick()))
+        if(running)
+          timerFuture(tickDelay).flatMap(_ => Future(tick(force = false)))
       } catch {
         case t: Throwable =>
           log("Caught error " + t.getMessage)
@@ -141,7 +180,7 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
       def start(): Unit = if(!running) {
         running = true
 
-        Future(tick())
+        Future(tick(force = false))
       }
 
       def cancel(): Unit = if(running) {
@@ -165,6 +204,22 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
       ticks = ticks
     )
   }
+
+  def getColumnView: Future[ColumnView.Data] = Future fromTry Try {
+    val columns = region.l3Layer.columns map { column =>
+      val cells = column.cells map { cell =>
+        ColumnView.Cell(cell.active, cell.predictive)
+      }
+      ColumnView.Column(cells, active = column.active,
+        wasPredicted = column.wasPredicted)
+    }
+
+    ColumnView.Data(columns)
+  }
+
+  def stop() = currentRun.foreach(_.cancel())
+  def tick() = currentRun.foreach(_.tick())
+  def start() = startRun(lastFunction)
 }
 
 object UI extends js.JSApp {
@@ -183,36 +238,59 @@ object UI extends js.JSApp {
   val overlapChart = new ColumnPolarComponent($("#overlapDutyChart"), config.regionWidth)
   val anomaly = new ColumnLineComponent($("#anomalyChart"), Seq("anomaly"))
   val ticks = $("#ticks")
+  val columnView = new ColumnView($("#columnView"))
 
   val workerInstance = if(window.Worker != null) {
     new WebWorker
   } else new Worker
 
+  var isPaused = false
+
+  var updateTimer: Option[Scheduler.Cancelable] = None
+
   def jsFunctionBody = $("#inputFunction")(0).asInstanceOf[js.Dynamic].value.asInstanceOf[String]
 
-  def update(): Unit = workerInstance.getUIStats onComplete {
-    case Success(stats) =>
-      //println(stats)
-      val f = ChartJS.Chart.onAnimationComplete {
-        activeDutyChart.update(stats.activeDuties)
-        overlapChart.update(stats.overlapDuties)
-        anomaly.update(stats.anomalyScore)
+  def update(): Unit = {
+    updateTimer.foreach(_.cancel())
+    updateTimer = Some(Scheduler.scheduleEvenly(uiDelay)(doUpdate()))
+  }
 
-        ticks.text("Ticks: " + stats.ticks)
-      }
+  def doUpdate(): Future[Unit] = workerInstance.getUIStats flatMap { stats =>
+    ChartJS.Chart.onAnimationComplete {
+      activeDutyChart.update(stats.activeDuties)
+      overlapChart.update(stats.overlapDuties)
+      anomaly.update(stats.anomalyScore)
 
-      for {
-        _ <- f
-        _ <- timerFuture(uiDelay)
-      } update()
-    case Failure(t) => throw t
+      ticks.text("Ticks: " + stats.ticks)
+    }.recover {
+      case NonFatal(t) => t.printStackTrace()
+    }
+  }
+
+  def updateColumnView(): Future[Unit] = {
+    workerInstance.getColumnView map columnView.update recover {
+      case NonFatal(t) => t.printStackTrace()
+    }
   }
 
   $(global.document).keypress { e: window.KeyboardEvent =>
     e.keyCode match {
       case 13 if !e.shiftKey =>
         restartRun()
+        update()
         false
+      case 'p' if isPaused =>
+        isPaused = false
+        workerInstance.start()
+        update()
+      case 'p' =>
+        isPaused = true
+        workerInstance.stop()
+        updateTimer.foreach(_.cancel())
+      case 't' if isPaused =>
+        workerInstance.tick()
+        doUpdate()
+        updateColumnView()
       case _ => true
     }
   }

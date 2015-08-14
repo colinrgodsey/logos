@@ -31,7 +31,7 @@ class L3Region[L](implicit val config: CLA.Config[L],
       columns.foreach(_.update())
       VM.distributedExec(desiredLocalActivity / numWorkers,
         activeColumns.toIndexedSeq)(_.temporalPrePooler())
-      activeColumns.foreach(_.temporalPostPooler())
+      columns.foreach(_.temporalPostPooler())
     }
 
     //def input(idx: Int): Boolean
@@ -124,4 +124,31 @@ class L4Region[L](implicit val config: CLA.Config[L],
 
   def update(input: Input): Unit =
     update(input, Nil)
+}
+
+//used to track 'active state'
+trait ColumnState {
+  type IndexAndUpdate = {
+    def apply(index: Int): Boolean
+    def update(index: Int, value: Boolean): Unit
+  }
+
+  object cellActive {
+    def apply(index: Int): Boolean = ???
+    def update(index: Int, value: Boolean): Unit = ???
+  }
+
+  object cellPredictive {
+    def apply(index: Int): Boolean = ???
+    def update(index: Int, value: Boolean): Unit = ???
+  }
+}
+
+trait RegionState {
+  val l3ColumnState: ColumnState
+}
+
+//holds the 'connectivity' / logic. the results of learning.
+trait LearningState {
+
 }

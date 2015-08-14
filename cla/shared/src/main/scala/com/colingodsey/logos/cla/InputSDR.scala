@@ -79,8 +79,8 @@ class InputSDR[L](implicit val config: CLA.Config[L],
 
   def localSpatialPooler(segment: DendriteSegment, loc: topology.Location): Unit =
     if(segment.overlap > 0) {
-      val sorted = neighborsIn(loc, inhibitionRadius).toStream.filter(_ != segment).
-          map(_.overlap).filter(_ > 0).sortBy(-_)
+      val sorted = neighborsIn(loc, inhibitionRadius).filter(_ != segment).
+          map(_.overlap).filter(_ > 0).toStream.sortBy(-_)
 
       val min = if(sorted.isEmpty) 0
       else sorted.take(desiredLocalActivity).min
@@ -94,7 +94,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
   protected def spatialPooler(): Unit = {
     //clear activation state and update input
     segments.foreach(_.update())
-println(inhibitionRadius)
+//println(inhibitionRadius)
     if(dynamicInhibitionRadius && inhibitionRadius < (inputWidth / 2)) {
       for(i <- 0 until segments.length) {
         val seg = segments(i)

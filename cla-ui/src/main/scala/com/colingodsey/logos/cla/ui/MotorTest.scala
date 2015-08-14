@@ -180,6 +180,8 @@ abstract class MotorWorker(implicit ec: ExecutionContext) extends MotorWorker.In
     pos
   }
 
+
+
   def getUIStats: Future[RunStats] = Future successful {
     val l3score = if(l3ScoreBuffer.isEmpty) 0 else l3ScoreBuffer.sum / l3ScoreBuffer.length
     l3ScoreBuffer = Nil

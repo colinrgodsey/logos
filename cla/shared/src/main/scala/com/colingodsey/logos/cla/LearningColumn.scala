@@ -66,23 +66,29 @@ trait LearningColumn extends MiniColumn { column =>
   def mostPredictiveDutyCell =
     cells.maxBy(x => (x.mostPredictiveDutyCycle, x.ordinal))
 
-  //active columns will 'tick' predictive state of cells
-  //TODO: should this fire if active, or if overlap > minOverlap?
+  /**
+   * Calculate predictive state here.
+   * No modification should be made to any cells or columns here!
+   * We should just predict what happens in the post pooler.
+   */
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
     val hasPredictive = true//cells.exists(_.predictive)
 
-    nextLearningCell = {
+    //only select new learning cell once old one is predicted
+    nextLearningCell = if(learningCell.predictive) {
       val max = cells.maxBy(_.activationOrdinal)
 
-      if(max.active) Some(max) else None
-    }
+      Some(max)
+    } else Some(learningCell)
 
-    //TODO: only learn one segment at a time?
-    //TODO: only new synapses to learning cells?
+    /*
+    Calculate any distal mutations here. These calculations
+    should NOT affect any of the data used by other columns in
+    the pre pooler.
+     */
     if(hasPredictive) {
-      //TODO: most predictive only, or all predictive?
       //cells.filter(_.predictive).foreach(_.reinforceDistal())
       nextLearningCell.getOrElse(randomCell).reinforceDistal()
     } else {
@@ -91,22 +97,28 @@ trait LearningColumn extends MiniColumn { column =>
     }
   }
 
-  //TODO: learning cell and sequence segments
+  /**
+   * This handles actually mutating cell/column state
+   * based on what was predicted in the pre pooler.
+   */
   def temporalPostPooler(): Unit = {
     cells.foreach(_.tickDown())
 
     //TODO: only 1 cell? or many?
-    if(active) {
-      val nPredictive = cells.count(_.activateIfPredicted())
-      //if(active && learningCell.predictive) learningCell.activate(1)
+    wasPredicted = if(active) {
+      //val nPredictive = cells.count(_.activateIfPredicted())
+      val nPredictive = cells.count(_.predictive)
+      //if(nextLearningCell.isDefined && nextLearningCell.get.predictive) learningCell.activate(learningCellDuration)
 
       //TODO: wasPredicted only if active this round?
-      wasPredicted = nPredictive > 0
-    } else {
-      wasPredicted = false
+      nPredictive > 0
+    } else false
+
+    if(active) {
+      selectedLearningCell = nextLearningCell
+      selectedLearningCell.foreach(_.activateIfPredicted())
     }
 
-    selectedLearningCell = nextLearningCell
 
     //burst cells if not predicted
     if (!wasPredicted && active)

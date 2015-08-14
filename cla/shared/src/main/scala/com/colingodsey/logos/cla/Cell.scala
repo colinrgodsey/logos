@@ -4,7 +4,8 @@ import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
-final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
+//TODO: this cell shares the same dendrite structure and weighting as another cell
+final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None) extends NeuralNode { cell =>
   import column.layer
   import layer.config
   import config._
@@ -15,10 +16,11 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   private var _active = false
   var activeForTicks = 0
 
-  val distalDendrite = new DistalDendrite[Location](column.loc)
+  val distalDendrite = /*if(isShadowing) newShadowDendrite else */new DistalDendrite[Location](column.loc)
   var ordinal = math.random
 
   def active = _active
+  def isShadowing = shadowCell.isDefined
 
   //TODO: verticle offsets?
   def loc = column.loc
@@ -29,13 +31,15 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
     predictive = distalDendrite.active
   }
 
+  def newShadowDendrite = {
+
+  }
+
   def leastPredictiveDutyCycle = distalDendrite.leastActiveDutyCycle
   def mostPredictiveDutyCycle = distalDendrite.mostActiveDutyCycle
 
   def tickDown(): Unit = {
     activeForTicks -= 1
-
-    ordinal = math.random
 
     if(activeForTicks <= 0) deactivate()
   }
@@ -46,6 +50,8 @@ final class Cell(val column: LearningColumn) extends NeuralNode { cell =>
   }
 
   def activate(forTicks: Int): Unit = {
+    ordinal = math.random
+
     _active = true
     //predictive = false
     //TODO: reset, or min?
