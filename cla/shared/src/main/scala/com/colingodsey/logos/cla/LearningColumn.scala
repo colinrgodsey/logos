@@ -6,7 +6,7 @@ import com.colingodsey.logos.collections.ExtraMath.randomNormal
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
-trait MiniColumn extends NeuralNode { column =>
+trait MiniColumn extends NeuralNode with Addressable { column =>
   var wasPredicted: Boolean
   var wasActive: Boolean
   def active: Boolean
@@ -15,6 +15,8 @@ trait MiniColumn extends NeuralNode { column =>
   val layer: Layer
 
   def ordinal: Double
+
+  def cells: Seq[NeuralNode]
 }
 
 trait LearningColumn extends MiniColumn { column =>
@@ -26,11 +28,14 @@ trait LearningColumn extends MiniColumn { column =>
   import layer.config
   import config._
 
-  val cells = Array.fill(columnHeight)(new Cell(column))
+  val cells: IndexedSeq[Cell] = (0 until columnHeight).map(
+    idx => new Cell(column, index = idx)).toArray.toIndexedSeq
   val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random)
   val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random)
 
   val uuid = math.random
+
+  lazy val id = layer.config.topology.columnIndexFor(loc).toString
 
   var active = false
   @volatile private var selectedLearningCell: Option[Cell] = None
@@ -74,7 +79,7 @@ trait LearningColumn extends MiniColumn { column =>
   def temporalPrePooler(): Unit = if(active) {
     cells.foreach(_.computePredictive())
 
-    val hasPredictive = cells.exists(_.predictive)
+    val hasPredictive = cells.exists(_._predictive)
 
     /*
     STICKY CELL HYPOTHESIS
@@ -86,7 +91,7 @@ trait LearningColumn extends MiniColumn { column =>
      */
 
     //only select new learning cell once old one is predicted or new one predicted
-    nextLearningCell = if(learningCell.predictive || hasPredictive) {
+    nextLearningCell = if(learningCell._predictive || hasPredictive) {
       val max = cells.maxBy(_.activationOrdinal)
 
       Some(max)
@@ -115,9 +120,9 @@ trait LearningColumn extends MiniColumn { column =>
 
     //TODO: only 1 cell? or many?
     wasPredicted = if(active) {
-      //val nPredictive = cells.count(_.activateIfPredicted())
-      val nPredictive = cells.count(_.predictive)
-      //if(nextLearningCell.isDefined && nextLearningCell.get.predictive) learningCell.activate(learningCellDuration)
+      val nPredictive = cells.count(_.activateIfPredicted(burstCellDuration))
+      //val nPredictive = cells.count(_.predictive)
+
 
       //TODO: wasPredicted only if active this round?
       nPredictive > 0
@@ -132,6 +137,14 @@ trait LearningColumn extends MiniColumn { column =>
       //selectedLearningCell.foreach(_.activateIfPredicted())
       selectedLearningCell.foreach(_.activate(learningCellDuration))
     }
+  }
+
+  protected def getItem(item: String): Addressable = {
+    val idx = item.toInt
+
+    if(idx >= cells.length) sys.error("index to large for cells")
+
+    cells(idx)
   }
 }
 

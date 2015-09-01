@@ -1,11 +1,20 @@
 package com.colingodsey.logos.cla
 
-trait Layer extends DutyCycle.Booster {
+trait Layer extends DutyCycle.Booster with Addressable {
   implicit val config: CLA.Config[_]
 
   type ColumnType <: MiniColumn
 
   def columns: IndexedSeq[ColumnType]
+
+  protected def getItem(item: String): Addressable = columns(item.toInt)
+
+  def getOutput: CLA.Input = {
+    (for {
+      column <- columns.iterator
+      cell <- column.cells
+    } yield cell.active).toIndexedSeq
+  }
 }
 
 trait L4Layer[L] extends SequenceLayer {
@@ -54,18 +63,16 @@ trait L4Layer[L] extends SequenceLayer {
     columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasActive, !c.wasPredicted, c.oldOverlap, c.ordinal)
     //}.flatMap(_.cells.filter(_.active))
-    }.map(_.learningCell).filter(_.active)
+    //}.map(_.learningCell).filter(_.active)
+    }.flatMap {
+      case column if column.wasPredicted =>
+        column.cells.filter(_.active)
+      case column => Seq(column.learningCell)
+    }
   }
 
   def getLearningMotorNodes = {
     motorInput.segments.toStream.filter(_.wasActive).sortBy(_.activationOrdinal).reverse
-  }
-
-  def getInput: CLA.Input = {
-    (for {
-      column <- columns.iterator
-      cell <- column.cells
-    } yield cell.active).toIndexedSeq
   }
 
   //TODO: need to try inhibit columns that dont transition somewhere maybe....
@@ -88,7 +95,12 @@ trait L3Layer[L] extends SequenceLayer {
   def getLearningNodes: Stream[NeuralNode] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
       (!c.wasActive, !c.wasPredicted, c.oldOverlap, c.ordinal)
-    //}.flatMap(_.cells.filter(_.active))
-    }.map(_.learningCell).filter(_.active)
+      //}.flatMap(_.cells.filter(_.active))
+      //}.map(_.learningCell).filter(_.active)
+    }.flatMap {
+      case column if column.wasPredicted =>
+        column.cells.filter(_.active)
+      case column => Seq(column.learningCell)
+    }
   }
 }

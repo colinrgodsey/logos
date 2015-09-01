@@ -208,7 +208,7 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
   def getColumnView: Future[ColumnView.Data] = Future fromTry Try {
     val columns = region.l3Layer.columns map { column =>
       val cells = column.cells map { cell =>
-        ColumnView.Cell(cell.active, cell.predictive)
+        ColumnView.Cell(cell.active, cell.activeForTicks > 1)
       }
       ColumnView.Column(cells, active = column.active,
         wasPredicted = column.wasPredicted)

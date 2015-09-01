@@ -5,20 +5,24 @@ import com.colingodsey.logos.collections.RollingAverage
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
 //TODO: this cell shares the same dendrite structure and weighting as another cell
-final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None) extends NeuralNode { cell =>
+final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None, index: Int) extends NeuralNode with Addressable { cell =>
   import column.layer
   import layer.config
   import config._
 
   type Location = layer.Location
 
-  var predictive = false
+  val distalDendrite = /*if(isShadowing) newShadowDendrite else */new DistalDendrite[Location](column.loc)
+
+  lazy val id = index.toString
+
+  var _predictive = false
   private var _active = false
   var activeForTicks = 0
 
-  val distalDendrite = /*if(isShadowing) newShadowDendrite else */new DistalDendrite[Location](column.loc)
   var ordinal = math.random
 
+  def predictive = _predictive
   def active = _active
   def isShadowing = shadowCell.isDefined
 
@@ -28,7 +32,7 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
   def computePredictive(): Unit = {
     distalDendrite.update()
 
-    predictive = distalDendrite.active
+    _predictive = distalDendrite.active
   }
 
   def newShadowDendrite = {
@@ -88,30 +92,45 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
     segment.updateDutyCycle(force = true)
   }
 
+  def addLearningCellToSegment(segment: DendriteSegment): Unit = if(!segment.isFull) {
+    val learningCells = column.layer.getLearningNodes(cell.column).filter(!segment.connectedTo(_))
+
+    fillSegment(segment, learningCells take 1)
+  }
+
   def reinforceDistal(): Unit = {
     distalDendrite.reinforce()
 
     val full = distalDendrite.isFull
 
-    //TODO: reinforce the next active one if this is full?
-    if(!distalDendrite.active && !full) {
-      distalDendrite.mostActive match {
-        /*case Some(segment) if segment.numConnections < config.seededDistalConnections =>
-          fillSegment(segment, column.layer.getLearningNodes(column))*/
-        case _ =>
-          addNewSegment()
-      }
-    //TODO: maybe remove dendrites by activation amount, not activity
-    } else if(full && distalDendrite.active) {
-      val toRemove = distalDendrite.leastActiveDuty
+    (distalDendrite.active, distalDendrite.mostActive) match {
+      case (false, _) if !full =>
+        /*distalDendrite.mostActive match {
+          case Some(segment) if !segment.isFull =>
+            fillSegment(segment, column.layer.getLearningNodes(column))
+          case _ =>
+            addNewSegment()
+        }*/
+        addNewSegment()
+      case (true, _) if full =>
+        val toRemove = distalDendrite.leastActiveDuty
 
-      toRemove.foreach(distalDendrite.removeSegment(_))
+        toRemove.foreach(distalDendrite.removeSegment(_))
+      case (true, Some(mostActive)) if math.random < appendDistalFrequency =>
+        addLearningCellToSegment(mostActive)
+      case _ =>
     }
+
   }
 
-  def activateIfPredicted(): Boolean = {
-    if (predictive) activate(learningCellDuration)
+  def activateIfPredicted(dur: Int = learningCellDuration): Boolean = {
+    if (_predictive) activate(dur)
 
-    predictive
+    _predictive
+  }
+
+  protected def getItem(item: String): Addressable = item match {
+    //case "distal" => distalDendrite
+    case x => sys.error("unknown path item " + x)
   }
 }

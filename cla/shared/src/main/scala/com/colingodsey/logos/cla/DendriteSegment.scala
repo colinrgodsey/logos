@@ -63,6 +63,8 @@ final class DendriteSegment(
 
   def ghostActivation = activation.toDouble + potentialActivation.toDouble
 
+  def isFull = numConnections >= config.seededDistalConnections
+
   def update(): Unit = {
     var act = 0
     var rec = 0

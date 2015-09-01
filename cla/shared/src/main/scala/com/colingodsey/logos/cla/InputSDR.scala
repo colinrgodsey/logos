@@ -48,6 +48,8 @@ class InputSDR[L](implicit val config: CLA.Config[L],
   def columnsNear(loc: topology.Location, rad: Double) =
     topology.columnIndexesNear(loc, rad) map segments
 
+  def update(layer: Layer): Unit = update(layer.getOutput)
+
   def update(input: Input): Unit = {
     for(i <- 0 until math.min(input.length, inputWidth)) this.currentInput(i) = input(i)
 
@@ -94,7 +96,7 @@ class InputSDR[L](implicit val config: CLA.Config[L],
   protected def spatialPooler(): Unit = {
     //clear activation state and update input
     segments.foreach(_.update())
-//println(inhibitionRadius)
+
     if(dynamicInhibitionRadius && inhibitionRadius < (inputWidth / 2)) {
       for(i <- 0 until segments.length) {
         val seg = segments(i)

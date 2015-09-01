@@ -95,6 +95,7 @@ object Scheduler {
       val fut = f
 
       fut.onComplete {
+        case Success(_) if isCanceled =>
         case Success(_) =>
           id = js.timers.setTimeout(dur)(inner)
         case Failure(t) =>

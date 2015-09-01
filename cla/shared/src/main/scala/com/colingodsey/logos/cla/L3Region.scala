@@ -19,6 +19,8 @@ class L3Region[L](implicit val config: CLA.Config[L],
   object l3Layer extends L3Layer[L] { l3Layer =>
     implicit val config = region.config
 
+    val id = "l3"
+
     val columns: IndexedSeq[L3Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
         val segment = inputLayer.segments(idx)
@@ -65,6 +67,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
   object l4Layer extends L4Layer[L] {
     implicit val config = region.config.copy(columnHeight = numl4cells/*, burstCellDuration = 3, learningCellDuration = 1*/, maxDistalDendrites = maxDistalDendrites / 4)
 
+    val id = "l4"
+
     val columns: IndexedSeq[L4Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
         val segment = inputLayer.segments(idx)
@@ -93,6 +97,8 @@ class L4Region[L](implicit val config: CLA.Config[L],
   object l3Layer extends L3Layer[L] {
     implicit val config = region.config.copy()
 
+    val id = "l3"
+
     val columns: IndexedSeq[L3Column[L]] =
       (0 until l4Input.segments.length).map { idx =>
         val segment = l4Input.segments(idx)
@@ -118,7 +124,7 @@ class L4Region[L](implicit val config: CLA.Config[L],
     motorInput.update(motor) //spatial pooling
     l4Layer.update()
     //if(math.random < 0.01) println(l4Layer.getInput.toSeq)
-    l4Input.update(l4Layer.getInput)
+    l4Input.update(l4Layer)
     l3Layer.update()
   }
 

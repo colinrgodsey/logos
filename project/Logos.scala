@@ -59,20 +59,22 @@ object Logos {
     resolvers += "mmreleases" at
       "https://artifactory.mediamath.com/artifactory/libs-release",
 
-    jsDependencies += "org.webjars" % "jquery" % "2.1.3" / "2.1.3/jquery.js",
+    jsDependencies ++= Seq(
+      "org.webjars" % "jquery" % "2.1.3" / "2.1.3/jquery.js",
+      "org.webjars" % "flot" % "0.8.3-1" / "jquery.flot.js",
+      "org.webjars" % "chartjs" % "1.0.2" / "Chart.min.js"
+    ),
 
-    libraryDependencies += "com.mediamath" %%% "scala-json" % "colin-SNAPSHOT",
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.8.0",
-    //libraryDependencies += "be.doeraene" %%% "scalajs-jquery" % "0.8.0",
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.7.0",
+    libraryDependencies ++= Seq(
+      "com.mediamath" %%% "scala-json" % "0.2-SNAPSHOT",
+      "org.scala-js" %%% "scalajs-dom" % "0.8.0"
+    ),
 
     skip in packageJSDependencies := false,
     bootSnippet := "com.colingodsey.logos.cla.ui.UI().main();",
 
-    refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile),
+    refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile)
     //updateBrowsers <<= updateBrowsers.triggeredBy(fastOptJS in Compile),
 
-    jsDependencies += "org.webjars" % "flot" % "0.8.3-1" / "jquery.flot.js",
-    jsDependencies += "org.webjars" % "chartjs" % "1.0.2" / "Chart.min.js"
   )
 }

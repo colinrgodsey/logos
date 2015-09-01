@@ -43,6 +43,7 @@ object CLA {
       maxDistalDendrites: Int = 64,
       minDistalPermanence: Double = 0.01,
       segmentDutyCycleRatio: Double = 0.2,
+      appendDistalFrequency: Double = 0.08, //chance that an active segment will make a new connection
 
       connectionThreshold: Double = 0.8,
       permanenceInc: Double = 0.1,
@@ -54,7 +55,7 @@ object CLA {
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 70,
 
-      topology: Topology[L] = RingTopology,
+      topology: Topology[L] = LineTopology,
       dynamicInhibitionRadius: Boolean = true,
       dynamicInhibitionRadiusScale: Double = 2.0,
 
@@ -65,7 +66,10 @@ object CLA {
     val numWorkers = specificNumWorkers getOrElse sys.runtime.availableProcessors()
     val inputRangeRadius = inputRangeSpreadPercent * inputWidth / 2.0
     val nonLocalizedInput = inputRangeSpreadPercent >= 1.0
-    val desiredLocalActivity = math.ceil(regionWidth * desiredActivityPercent).toInt
+    val desiredLocalActivity = {
+      val x = math.ceil(regionWidth * desiredActivityPercent).toInt
+      math.max(x, 4)
+    }
     val seededDistalConnections = math.ceil((1 + seededDistalPercent) * desiredLocalActivity + 1).toInt
     val segmentThreshold = math.ceil(segmentThresholdPercent * seededDistalConnections).toInt
 
@@ -161,6 +165,8 @@ object CLA {
 
     def scale(loc: Location, s: Double): Location = (loc * s).toInt
 
+    def isLocationValid(loc: Location, width: Int): Boolean
+
     //radius as first std-dev [-1,+1]
     /*def probabilityAt(radius: Double, rad: Double, cachedMax: Option[Double] = None): Double = {
 
@@ -183,7 +189,7 @@ object CLA {
         outStream append inner
       }
 
-      inner.distinct
+      inner.filter(isLocationValid(_, width)).distinct
     }
 
     def radiusOfLocations(locations: TraversableOnce[Location]): Double = {
@@ -197,6 +203,16 @@ object CLA {
 
       (max - min) / 2.0
     }
+
+    //1st standard deviation. 70% within rad
+    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
+      val x: Location = (r.randomNormal * rad + loc).toInt
+
+      def next = normalizedRandomLocations(loc, rad, width)
+
+      if(isLocationValid(x, width)) x #:: next
+      else next
+    }
   }
 
   case object LineTopology extends TwoDTopology {
@@ -204,27 +220,20 @@ object CLA {
       val min = (loc - rad).toInt
       val max = (loc + rad).toInt
 
-      (min to max).iterator.filter(x => x >= 0 && x < cfg.regionWidth)
+      (min to max).iterator.filter(isLocationValid(_, cfg.regionWidth))
     }
 
     def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double =
       math.abs(a - b).toDouble
 
     def indexFor(x: Location, width: Int): Int = {
-      require(x >= 0 && x < width, "invalid line location!")
+      require(isLocationValid(x, width), s"invalid line location $x of $width!")
 
       x
     }
 
-    //1st standard deviation. 60% within rad
-    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
-      val x: Location = (r.randomNormal * rad + loc).toInt
-
-      if(x >= 0 && x < width)
-        x #:: normalizedRandomLocations(loc, rad, width)
-      else
-        normalizedRandomLocations(loc, rad, width)
-    }
+    def isLocationValid(loc: Location, width: Int): Boolean =
+      loc >= 0 && loc < width
   }
 
   case object RingTopology extends TwoDTopology {
@@ -234,6 +243,8 @@ object CLA {
 
       (min to max).iterator
     }
+
+    def isLocationValid(loc: Location, width: Int): Boolean = true
 
     def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double = {
       var d = math.abs(a - b).toDouble
@@ -252,13 +263,6 @@ object CLA {
 
       x
     }
-
-    //1st standard deviation. 70% within rad
-    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = {
-      val x: Location = (r.randomNormal * rad + loc).toInt
-
-      x #:: normalizedRandomLocations(loc, rad, width)
-    }
   }
 
   private object _VM {
@@ -271,6 +275,18 @@ object CLA {
   val VM = _VM.VM
 }
 
+trait Addressable {
+  def id: String
+
+  protected def getItem(item: String): Addressable
+
+  def get(path: String): Addressable = get(path.split(".").toList)
+
+  def get(path: Seq[String]): Addressable = path match {
+    case Nil => this
+    case head :: tail => getItem(head).get(tail)
+  }
+}
 
 object DefaultShadow {
 

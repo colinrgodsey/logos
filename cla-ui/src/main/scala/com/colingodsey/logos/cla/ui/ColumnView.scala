@@ -15,7 +15,7 @@ import js.Dynamic.global
 import org.scalajs.dom.ext.{Color => DOMColor}
 
 object ColumnView {
-  case class Cell(active: Boolean, predictive: Boolean)
+  case class Cell(active: Boolean, longActive: Boolean)
   case class Column(cells: Seq[Cell], active: Boolean, wasPredicted: Boolean)
   case class Data(columns: Seq[Column])
 
@@ -48,7 +48,8 @@ class ColumnView(sel: JQuery) {
       context.beginPath()
       context.arc(center.x, center.y, cellRadius, 0, 2 * Math.PI, false)
       context.fillStyle = cell.active match {
-        case true if column.active => "blue"
+        case true if column.active => "green"
+        case true if cell.longActive => "blue"
         case true => "yellow"
         //case _ if cell.predictive => "red"
         case _ => "white"
