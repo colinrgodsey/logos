@@ -1,26 +1,29 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.cla.traits.SpatialPooler
 import com.colingodsey.logos.collections.RollingAverage
 
 import scala.concurrent.ExecutionContext
 
 //TODO: use sigmoid value for overlap sum
-class InputSDR[L](implicit val config: CLA.Config[L],
-    ec: ExecutionContext) extends DutyCycle.Booster { inputLayer =>
+class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] with CLA.InputSource { inputLayer =>
   import com.colingodsey.logos.cla.CLA._
   import config._
 
-  val width = config.numColumns
+  def this(source: CLA.InputSource)(implicit config: CLA.Config[L]) {
+    this()(config.copy(inputWidth = source.width))
+  }
 
-  val segments = (for(i <- 0 until width) yield createSegment(i)).toArray
-  val currentInput = Array.fill(inputWidth)(false)
+  val segments: IndexedSeq[DendriteSegment] =
+    (for(i <- 0 until numColumns) yield createSegment(i)).toArray[DendriteSegment]
   val inhibitionRadiusAverage = RollingAverage(dutyAverageFrames) += regionWidth
 
+  var currentInput: IndexedSeq[Boolean] = Array.fill(inputWidth)(false)
   var maxDutyCycle = 1.0
 
-  protected def createSegment(idx: Int) = {
+  protected def createSegment(idx: Int): DendriteSegment = {
     val columnLoc = topology.columnLocationFor(idx)
-    val inputColumnLoc = topology.scale(columnLoc, inputWidth / width.toDouble)
+    val inputColumnLoc = topology.scale(columnLoc, inputWidth / numColumns.toDouble)
 
     val indexStream = if(nonLocalizedInput) {
       Stream.continually((math.random * inputWidth).toInt).take(10000).distinct
@@ -35,24 +38,27 @@ class InputSDR[L](implicit val config: CLA.Config[L],
     val nodes = inputMap.map { iidx =>
       val inputLoc = topology.columnLocationFor(iidx)
       val node: NeuralNode = new topology.LocalNeuralNode {
-        val loc: L = topology.scale(inputLoc, width.toDouble / inputWidth)
+        val loc: L = topology.scale(inputLoc, numColumns.toDouble / inputWidth)
         def active: Boolean = currentInput(iidx)
       }
 
       new NodeAndPermanence(node, getRandomProximalPermanence)
-    }.toArray.toIndexedSeq
+    }.toArray
 
-    new DendriteSegment(inputLayer, nodes, activationThresholdOpt = Some(minOverlap))
+    new DendriteSegment(nodes, activationThresholdOpt = Some(minOverlap))
   }
 
   def columnsNear(loc: topology.Location, rad: Double) =
-    topology.columnIndexesNear(loc, rad) map segments
+    topology.columnIndexesNear(loc, rad, regionWidth) map segments
 
-  def update(layer: Layer): Unit = update(layer.getOutput)
+  def update(layer: Layer): Unit = update(layer.produce)
 
   def update(input: Input): Unit = {
-    for(i <- 0 until math.min(input.length, inputWidth)) this.currentInput(i) = input(i)
+    require(input.length == inputWidth,
+      s"expected input width ${inputWidth} got ${input.length}")
+    this.currentInput = input
 
+    segments.foreach(_.update())
     spatialPooler()
 
     inhibitionRadiusAverage += averageReceptiveFieldRadius * dynamicInhibitionRadiusScale / inputWidth * regionWidth
@@ -77,47 +83,10 @@ class InputSDR[L](implicit val config: CLA.Config[L],
     else s / nActive
   }
 
-  def neighborsIn(loc: topology.Location, radius: Double) = columnsNear(loc, radius)
+  def neighborsIn(loc: topology.Location, radius: Double): Iterator[DendriteSegment] =
+    columnsNear(loc, radius)
 
-  def localSpatialPooler(segment: DendriteSegment, loc: topology.Location): Unit =
-    if(segment.overlap > 0) {
-      val sorted = neighborsIn(loc, inhibitionRadius).filter(_ != segment).
-          map(_.overlap).filter(_ > 0).toStream.sortBy(-_)
+  def width = config.numColumns
 
-      val min = if(sorted.isEmpty) 0
-      else sorted.take(desiredLocalActivity).min
-
-      segment.active = {
-        val o = segment.overlap
-        o > min && o > 0
-      }
-    } else segment.active = false
-
-  protected def spatialPooler(): Unit = {
-    //clear activation state and update input
-    segments.foreach(_.update())
-
-    if(dynamicInhibitionRadius && inhibitionRadius < (inputWidth / 2)) {
-      for(i <- 0 until segments.length) {
-        val seg = segments(i)
-        val loc = topology.columnLocationFor(i)
-
-        localSpatialPooler(seg, loc)
-      }
-    } else {
-      val sorted = segments.sortBy { segment =>
-        (-segment.overlap, -segment.activation, segment.ordinal)
-      }
-      val (topK, tail) = sorted.splitAt(desiredLocalActivity)
-
-      //activated top columns within our inhibition radius
-      tail.foreach(_.active = false)
-      topK.foreach(x => x.active = x.overlap > 0) //only active inputs
-    }
-
-    //update rolling averages
-    VM.distributedExec(regionWidth / numWorkers, segments)(_.updateDutyCycle(force = true))
-
-    maxDutyCycle = segments.maxBy(_.activeDutyCycle.toDouble).activeDutyCycle.toDouble
-  }
+  def iterator = segments.iterator.map(_.active)
 }

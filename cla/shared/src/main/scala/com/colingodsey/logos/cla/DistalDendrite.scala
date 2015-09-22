@@ -2,7 +2,7 @@ package com.colingodsey.logos.cla
 
 //cell via predictive <- OR segments as distal dentrite <- THRESH synapses as segment
 final class DistalDendrite[L](
-    val loc: L)(implicit val config: CLA.Config[L]) extends NeuralNode with DutyCycle.Booster {
+    val loc: L)(implicit val config: CLA.Config[L]) extends NeuralNode {
   import config._
   
   var active = false
@@ -24,7 +24,7 @@ final class DistalDendrite[L](
   def update(): Unit = {
     segments.foreach { s =>
       s.update()
-      s.updateDutyCycle()
+      s.updateDutyCycle(maxDutyCycle)
     }
 
     mostActive =
@@ -36,11 +36,16 @@ final class DistalDendrite[L](
     maxDutyCycle = mostActiveDutyCycle
   }
 
-  def removeSegment(s: DendriteSegment): Unit = {
-    var found = false
+  def add(s: DendriteSegment): Unit = {
+    segments +:= s
 
+    s.update()
+    s.updateDutyCycle(maxDutyCycle, force = true)
+  }
+
+  def removeSegment(s: DendriteSegment): Unit = {
     segments = segments filter {
-      case a if a == s =>
+      case `s` =>
         s.removeAllConnections()
         false
       case _ => true
@@ -52,7 +57,7 @@ final class DistalDendrite[L](
     mostActive.foreach{
       x =>
         x.reinforce()
-        x.updateDutyCycle(force = true)
+        x.updateDutyCycle(maxDutyCycle, force = true)
     }
   }
 }

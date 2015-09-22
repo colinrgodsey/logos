@@ -1,4 +1,6 @@
-package com.colingodsey.logos.cla
+package com.colingodsey.logos.cla.traits
+
+import com.colingodsey.logos.cla.{NeuralNode, NodeAndPermanence}
 
 trait SDR extends DutyCycle {
   def connectionThreshold: Double
@@ -6,7 +8,7 @@ trait SDR extends DutyCycle {
   def permanenceDec: Double
   def minDistalPermanence: Double
 
-  protected var connections: Array[NodeAndPermanence]
+  protected var connections: IndexedSeq[NodeAndPermanence]
 
   //private var connectedTo = Set[NeuralNode]()
 

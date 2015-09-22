@@ -1,22 +1,11 @@
-package com.colingodsey.logos.cla
+package com.colingodsey.logos.cla.traits
 
+import com.colingodsey.logos.cla.NeuralNode
 import com.colingodsey.logos.collections.RollingAverage
-
-object DutyCycle {
-  trait Booster {
-    def maxDutyCycle: Double
-  }
-
-  trait Inhibitor {
-
-  }
-}
 
 trait DutyCycle extends NeuralNode {
   private var _boost = 0.0
   protected val permanentBoostOffset = math.random * 0.1
-
-  def parent: DutyCycle.Booster
 
   def boostIncr: Double
   def activationThreshold: Int
@@ -44,21 +33,19 @@ trait DutyCycle extends NeuralNode {
   def activeOverlap = if(active) overlap else 0.0
 
   //TODO: data from parent, or inhibition radius?
-  def updateDutyCycle(force: Boolean = false): Unit = if(math.random < dutyCycleUpdateRatio || force) {
-    //val maxDutyCycle = neighborsIn(region.inhibitionRadius).map(_.activeDutyCycle.toDouble).max
+  def updateDutyCycle(maxDutyCycle: Double, force: Boolean = false): Unit =
+    if(math.random < dutyCycleUpdateRatio || force) {
+      val minDutyCycle = 0.01 * maxDutyCycle
 
-    val maxDutyCycle = parent.maxDutyCycle
-    val minDutyCycle = 0.01 * maxDutyCycle
+      activeDutyCycle += (if(active) 1 else 0)
+      overlapDutyCycle += (if(overlap >= activationThreshold) 1 else 0)
 
-    activeDutyCycle += (if(active) 1 else 0)
-    overlapDutyCycle += (if(overlap >= activationThreshold) 1 else 0)
+      if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr * math.random
+      else boost = 0
 
-    if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr * math.random
-    else boost = 0
-
-    //enforce all synapses a small amount
-    if(overlapDutyCycle.toDouble <= minDutyCycle)
-      boostPermanence()
-  }
+      //enforce all synapses a small amount
+      if(overlapDutyCycle.toDouble <= minDutyCycle)
+        boostPermanence()
+    }
 
 }

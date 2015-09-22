@@ -46,7 +46,7 @@ object CLATest extends TestSuite {
         region.update(encoder.encode(r))//, IndexedSeq.fill(config.inputWidth)(false))
         //println("\t\t\t" + encoder.encode(r))
         //println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius)
-        println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius, region.inputLayer.averageReceptiveFieldRadius)
+        //println(region.l3Layer.anomalyScore, region.l3Layer.inhibitionRadius, region.sensoryInput.averageReceptiveFieldRadius)
 
       }
       println(region.l3Layer.anomalyScore)
@@ -59,10 +59,10 @@ object CLATest extends TestSuite {
       println(region.l3Layer.columns.filter(_.active).mkString("\n"))
       println(region.l3Layer.columns.map(_.boost))
       println(region.l3Layer.columns.map(_.overlap))
-      println(region.l3Layer.columns.map(_.activeDutyCycle.toDouble))
-      println(region.l3Layer.columns.map(_.overlapDutyCycle.toDouble))
-      println(region.l3Layer.inhibitionRadius)
-      println(region.inputLayer.averageReceptiveFieldRadius)
+      //println(region.l3Layer.columns.map(_.activeDutyCycle.toDouble))
+      //println(region.l3Layer.columns.map(_.overlapDutyCycle.toDouble))
+      //println(region.l3Layer.inhibitionRadius)
+      println(region.sensoryInput.averageReceptiveFieldRadius)
     }
   }
 

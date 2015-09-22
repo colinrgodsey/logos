@@ -1,16 +1,16 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.cla.traits.LearningColumn
 import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
 //TODO: this cell shares the same dendrite structure and weighting as another cell
-final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None, index: Int) extends NeuralNode with Addressable { cell =>
+final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None, index: Int) extends NeuralNode with Addressable with NeuralNode.Ordinal { cell =>
   import column.layer
   import layer.config
   import config._
-
-  type Location = layer.Location
+  import layer.Location
 
   val distalDendrite = /*if(isShadowing) newShadowDendrite else */new DistalDendrite[Location](column.loc)
 
@@ -64,10 +64,10 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
 
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
-  def activationOrdinal =
-    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, 0.0, ordinal)
+  def activationOrdinal: (Double, Double, Double) =
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, ordinal)
 
-  def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
+  //def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
   def fillSegment(segment: DendriteSegment, learningCells: Stream[NeuralNode]): Unit = {
     if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
@@ -78,20 +78,18 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
   }
 
   def addNewSegment(): Unit = {
-    val segment = new DendriteSegment(distalDendrite)
+    val segment = new DendriteSegment()
 
     val learningCells = column.layer.getLearningNodes(cell.column)
 
     if(learningCells.length < segmentThreshold) return
 
-    distalDendrite.segments :+= segment
-
     fillSegment(segment, learningCells)
 
-    segment.update()
-    segment.updateDutyCycle(force = true)
+    distalDendrite.add(segment)
   }
 
+  //TODO: after adding cell, add a 'cooldown' period
   def addLearningCellToSegment(segment: DendriteSegment): Unit = if(!segment.isFull) {
     val learningCells = column.layer.getLearningNodes(cell.column).filter(!segment.connectedTo(_))
 

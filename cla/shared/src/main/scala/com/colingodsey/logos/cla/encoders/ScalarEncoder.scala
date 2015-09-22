@@ -14,11 +14,14 @@ case class ScalarEncoder(val length: Int, size: Int,
   val lengthMinusSize = length - size
   val range = max - min
 
-  def encode(x0: Double): CLA.Input = new AnyRef {
+  def encode(x0: Double): CLA.Input = new IndexedSeq[Boolean] {
     val (areaMax, areaMin) = {
-      val x = if(x0 > max) max else if(x0 < min) min else x0
-      val value = (x - min) / range
-      val a = (lengthMinusSize * value + size).toInt
+      val x = if(x0 > encoder.max) encoder.max
+      else if(x0 < encoder.min) encoder.min
+      else x0
+
+      val value = (x - encoder.min) / range
+      val a = (lengthMinusSize * value + encoder.size).toInt
       val b = (lengthMinusSize * value).toInt
 
       (a, b)
@@ -27,10 +30,7 @@ case class ScalarEncoder(val length: Int, size: Int,
     def length = encoder.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
 
-    def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
-    def iterator = Iterator from 0 take length map apply
-
-    override def toString = toSeq.map(x => if(x) 1 else 0).mkString
+    override def toString = iterator.map(x => if(x) 1 else 0).mkString
   }
 }
 
@@ -38,10 +38,13 @@ case class WeightedScalarEncoder(val length: Int, maxSize: Int,
     min: Double = 0.0, max: Double = 1.0) { encoder =>
   val range = max - min
 
-  def encode(x0: Double, scale: Double): CLA.Input = new AnyRef {
+  def encode(x0: Double, scale: Double): CLA.Input = new IndexedSeq[Boolean] {
     val (areaMax, areaMin) = {
-      val x = if(x0 > max) max else if(x0 < min) min else x0
-      val value = (x - min) / range
+      val x = if(x0 > encoder.max) encoder.max
+      else if(x0 < encoder.min) encoder.min
+      else x0
+
+      val value = (x - encoder.min) / range
 
       val size = math.round(maxSize * scale).toInt
       val lengthMinusSize = length - size
@@ -54,9 +57,6 @@ case class WeightedScalarEncoder(val length: Int, maxSize: Int,
 
     def length = encoder.length
     def apply(idx: Int) = idx < areaMax && idx >= areaMin
-
-    def toSeq: Seq[Boolean] = for(i <- 0 until length) yield apply(i)
-    def iterator = Iterator from 0 take length map apply
 
     override def toString = toSeq.map(x => if(x) 1 else 0).mkString
   }

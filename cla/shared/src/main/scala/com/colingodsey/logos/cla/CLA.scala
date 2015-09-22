@@ -1,9 +1,13 @@
 package com.colingodsey.logos.cla
 
+import com.colingodsey.logos.cla.traits.MiniColumn
+
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import DefaultShadow._
 
+import scala.reflect.ClassTag
 import scala.util.Random
 
 import com.colingodsey.logos.collections._
@@ -55,9 +59,9 @@ object CLA {
       boostIncr: Double = 0.05,
       dutyAverageFrames: Int = 70,
 
-      topology: Topology[L] = LineTopology,
+      topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 2.0,
+      dynamicInhibitionRadiusScale: Double = 4.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -100,7 +104,8 @@ object CLA {
       connectionThreshold * 1.05
     }
     
-    val numColumns = math.pow(regionWidth, topology.dims).toInt
+    val numColumns = topology.numPoints(regionWidth)
+    val numCells = numColumns * columnHeight
   }
 
   val DefaultConfig = Config()
@@ -109,63 +114,91 @@ object CLA {
     regionWidth = 128
   )
 
-  type Input = {
-    def length: Int
-    def apply(idx: Int): Boolean
-    def toSeq: Seq[Boolean]
+  type Input = IndexedSeq[Boolean]
+
+  trait InputSource {
+    def width: Int
     def iterator: Iterator[Boolean]
+
+    def produce: IndexedSeq[Boolean] = {
+      val builder = mutable.ArrayBuilder.make[Boolean]
+      builder.sizeHint(width)
+
+      builder ++= iterator
+
+      val res = builder.result()
+
+      require(res.length == width)
+
+      res
+    }
   }
+  
+  object Topology {
+    def fixDistanceForWrapping(dist: Double, width: Int): Double = {
+      var d = dist
 
-  trait InputBase { self: Input =>
+      //clamp to [0, width) first
+      while(d > width) d -= width
 
+      //furthest distance any 2 points can be from each other is 1/2 width
+      if(d > width / 2) d = width - d
+
+      d
+    }
   }
 
   trait Topology[L] {
     type Location = L
 
-    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Location]
-    def distance(a: Location, b: Location)(implicit cfg: CLA.Config[L]): Double
+    def numPoints(width: Int): Int
+    
+    def locationsNear(loc: Location, rad: Double, width: Int): Iterator[Location]
+    def distance(a: Location, b: Location, width: Int): Double
     def dims: Int
-    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int
-    def columnLocationFor(idx: Int): Location
+    def columnIndexFor(loc: Location, width: Int): Int
+    def columnLocationFor(idx: Int, width: Int): Location
     def indexFor(loc: Location, width: Int): Int
     def scale(loc: Location, s: Double): Location
     def normalizedRandomLocations(loc: Location, rad: Double, width: Int,
         r: Random = Random): Stream[Location]
     def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location]
-    def radiusOfLocations(locations: TraversableOnce[L]): Double
+    def radiusOfLocations(locations: TraversableOnce[L], width: Int): Double
 
-    def columnIndexesNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Iterator[Int] =
-      locationsNear(loc, rad) map columnIndexFor
+    def columnIndexesNear(loc: Location, rad: Double, width: Int): Iterator[Int] =
+      locationsNear(loc, rad, width).map(columnIndexFor(_, width))
 
-    def randomLocationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Stream[Location] = {
-      val seq = locationsNear(loc, rad).toIndexedSeq
+    def randomLocationsNear(loc: Location, rad: Double, width: Int): Stream[Location] = {
+      val seq = locationsNear(loc, rad, width).toStream
 
       seq.sortBy(_ => math.random).toStream
     }
 
-    def indexFor(loc: Location)(implicit cfg: CLA.Config[L]): Int =
-      indexFor(loc, cfg.regionWidth)
+    def randomLocationNear(loc: Location, rad: Double, width: Int): Location =
+      randomLocationsNear(loc, rad, width).head
 
-    def randomLocationNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[L]): Location =
-      randomLocationsNear(loc, rad).head
+    def columnIndexFor(loc: Location)(implicit cfg: Config[Location]): Int =
+      columnIndexFor(loc, cfg.regionWidth)
 
-    trait LocalNeuralNode extends NeuralNode {
-      def loc: Location
-    }
+    def columnLocationFor(idx: Int)(implicit cfg: Config[Location]): Location =
+      columnLocationFor(idx, cfg.regionWidth)
+
+    trait LocalNeuralNode extends NeuralNode with NeuralNode.Local[Location]
   }
 
-  trait TwoDTopology extends Topology[Int] {
-    def columnIndexFor(loc: Location)(implicit cfg: CLA.Config[Int]): Int =
-      indexFor(loc)
+  trait OneDTopology extends Topology[Int] {
+    def isLocationValid(loc: Location, width: Int): Boolean
+
+    def columnIndexFor(loc: Location, width: Int): Int =
+      indexFor(loc, width)
 
     def dims = 1
 
-    def columnLocationFor(idx: Int): Location = idx
+    def numPoints(width: Int): Int = width
+
+    def columnLocationFor(idx: Int, width: Int): Location = idx
 
     def scale(loc: Location, s: Double): Location = (loc * s).toInt
-
-    def isLocationValid(loc: Location, width: Int): Boolean
 
     //radius as first std-dev [-1,+1]
     /*def probabilityAt(radius: Double, rad: Double, cachedMax: Option[Double] = None): Double = {
@@ -192,7 +225,7 @@ object CLA {
       inner.filter(isLocationValid(_, width)).distinct
     }
 
-    def radiusOfLocations(locations: TraversableOnce[Location]): Double = {
+    def radiusOfLocations(locations: TraversableOnce[Location], width: Int): Double = {
       var min = Double.MaxValue
       var max = 0
 
@@ -215,15 +248,89 @@ object CLA {
     }
   }
 
-  case object LineTopology extends TwoDTopology {
-    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[Int]): Iterator[Location] = {
-      val min = (loc - rad).toInt
-      val max = (loc + rad).toInt
+  case class CylinderTopology(height: Int) extends Topology[(Int, Int)] {
+    private implicit def t2ToV2(tup2: Location) = Vec2(tup2._1, tup2._2)
+    
+    private implicit def V2Tot2(pos: Vec2): Location = (pos.x.toInt, pos.y.toInt)
 
-      (min to max).iterator.filter(isLocationValid(_, cfg.regionWidth))
+    val maxY = height / 2
+    val minY = -maxY
+
+    def numPoints(width: Int): Int = width * height
+
+    def isValidLocation(loc: Location): Boolean = {
+      val y = loc._2
+
+      y >= minY && y < maxY
     }
 
-    def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double =
+    def locationsNear(loc: Location, rad: Double, width: Int): Iterator[Location] = {
+      val (x, y) = loc
+      
+      val radInt = math.ceil(rad).toInt
+
+      val minX = x - radInt
+      val maxX = x + radInt
+      val minY = y - radInt
+      val maxY = y + radInt
+      
+      for {
+        x <- (minX to maxX).iterator
+        y <- minY to maxY
+        pos = (x, y)
+        if isValidLocation(pos)
+        d = (pos - loc).length
+        if d <= rad
+      } yield pos
+    }
+
+    def radiusOfLocations(locations: TraversableOnce[Location], width: Int): Double = {
+      val locStream = locations.toStream.map(l => l: Vec2)
+
+      val sum = locStream.sum
+      val center = sum / locStream.length
+
+      locStream.iterator.map(p => (p - center).length).max
+    }
+
+    def distance(a: Location, b: Location, width: Int): Double = {
+      val d = (a - b).length
+
+      Topology.fixDistanceForWrapping(d, width)
+    }
+
+    def dims: Int = 2
+
+    def columnLocationFor(idx: Int, width: Int): Location = {
+      val y = idx / width
+      val x = (idx - y * width)
+
+      (x, y)
+    }
+
+    def columnIndexFor(loc: Location, width: Int): Int =
+      loc._2 * width + loc._1
+
+    def uniqueNormalizedLocations(loc: Location, rad: Double, width: Int): Stream[Location] = ???
+
+    def normalizedRandomLocations(loc: Location, rad: Double, width: Int, r: Random): Stream[Location] = ???
+
+    def indexFor(loc: Location, width: Int): Int = ???
+
+    def scale(loc: Location, s: Double): Location = ???
+  }
+
+  case object LineTopology extends OneDTopology {
+    def locationsNear(loc: Location, rad: Double, width: Int): Iterator[Location] = {
+      val radInt = math.ceil(rad).toInt
+      
+      val min = loc - radInt
+      val max = loc + radInt
+
+      (min to max).iterator.filter(isLocationValid(_, width))
+    }
+
+    def distance(a: Int, b: Int, width: Int): Double =
       math.abs(a - b).toDouble
 
     def indexFor(x: Location, width: Int): Int = {
@@ -236,22 +343,28 @@ object CLA {
       loc >= 0 && loc < width
   }
 
-  case object RingTopology extends TwoDTopology {
-    def locationsNear(loc: Location, rad: Double)(implicit cfg: CLA.Config[Int]): Iterator[Location] = {
-      val min = (loc - rad).toInt
-      val max = (loc + rad).toInt
+  case object RingTopology extends OneDTopology {
+    def locationsNear(loc: Location, rad: Double, width: Int): Iterator[Location] = {
+      val radInt = math.ceil(rad).toInt
+
+      val min = loc - radInt
+      val max = loc + radInt
 
       (min to max).iterator
     }
 
     def isLocationValid(loc: Location, width: Int): Boolean = true
+    
+    def distance(a: Int, b: Int, width: Int): Double = {
+      val d = math.abs(a - b).toDouble
 
-    def distance(a: Int, b: Int)(implicit cfg: CLA.Config[Int]): Double = {
-      var d = math.abs(a - b).toDouble
+      Topology.fixDistanceForWrapping(d, width)
+    }
 
-      while(d > cfg.regionWidth / 2.0) d -= cfg.regionWidth / 2.0
+    override def radiusOfLocations(locations: TraversableOnce[Location], width: Int): Double = {
+      val d = super.radiusOfLocations(locations, width)
 
-      d
+      Topology.fixDistanceForWrapping(d, width)
     }
 
     def indexFor(loc: Location, width: Int): Int = {
@@ -288,15 +401,54 @@ trait Addressable {
   }
 }
 
+trait Layer extends Addressable with CLA.InputSource {
+  implicit val config: CLA.Config[_]
+
+  type ColumnType <: MiniColumn
+
+  def columns: IndexedSeq[ColumnType]
+
+  protected def getItem(item: String): Addressable = columns(item.toInt)
+
+  def width = config.numCells
+
+  def iterator = for {
+    column <- columns.iterator
+    cell <- column.cells
+  } yield cell.active
+}
+
+
 object DefaultShadow {
 
   //to be replaced by shadow context
   object VMImpl {
     def newDefaultExecutionContext: ExecutionContext = ???
 
-    def distributedExec[T](chunkSize: Int, items: IndexedSeq[T])(f: T => Unit): Unit = ???
+    def distributedExec[T](chunkSize: Int, items: Iterable[T])(f: T => Unit): Unit = ???
+
+    def newNativeArray[T: ClassTag](length: Int): mutable.IndexedSeq[T] = ???
   }
 
+}
+
+object NeuralNode {
+  trait Local[L] {
+    def loc: L
+  }
+
+  trait Mutable {
+    def activate(): Unit
+    def deactivate(): Unit
+  }
+
+  trait ActivationOrdinal {
+    def activationOrdinal: (Double, Double, Double)
+  }
+
+  trait Ordinal {
+    def ordinal: Double
+  }
 }
 
 trait NeuralNode {

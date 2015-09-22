@@ -1,15 +1,15 @@
 package com.colingodsey.logos.cla
 
-import com.colingodsey.logos.cla.DutyCycle.Booster
+import com.colingodsey.logos.cla.traits.{SDR, SpatialPooler}
 import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: concat segments? can form SDRs of 2 sets of inputs, and concat segments
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
-    val parent: DutyCycle.Booster,
-    synapses: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty,
-    activationThresholdOpt: Option[Int] = None)(
-    implicit val config: CLA.Config[_]) extends SDR {
+      protected var connections: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty,
+      activationThresholdOpt: Option[Int] = None)(
+      implicit val config: CLA.Config[_])
+    extends SDR with NeuralNode.Mutable with NeuralNode.ActivationOrdinal with NeuralNode.Ordinal {
   import config._
 
   var wasActive = false
@@ -26,8 +26,6 @@ final class DendriteSegment(
 
   val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
 
-  protected var connections = synapses.toArray
-
   def receptiveRadius[L](implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
 
@@ -39,31 +37,28 @@ final class DendriteSegment(
       case x => sys.error("unexpected non-locale synpase " + x)
     }
 
-    topology.radiusOfLocations(locations)
+    topology.radiusOfLocations(locations, cfg.regionWidth)
   }
 
   /*
-  TODO: fundamental issue with ordinal
-
-    * similar cells are selected as the learning cells constantly
-    * should somehow also maybe reinforce similar connections instead of just over binding?
-    * results in first order sequences, not variable order
-    *
-    * maybe reinforce the most active, but if bursting, learningcell = random
+  activation with orginal used as a tie breaker
+  TODO: this is very important- can cause over convergence of sequences....
    */
-
-  /*
-
-  as a 'tie-breaker', tend to favor the least active segments
-  (produce new sequences instead of converging on a recently active one)
-
-  if we cant find the most active segment, we find the most potentially active one
-   */
-  def activationOrdinal = (if(active) overlap else 0.0, 0.0/*ghostActivation*/, 0.0, ordinal)
+  def activationOrdinal: (Double, Double, Double) = (overlap, 0.0/*ghostActivation*/, ordinal)
 
   def ghostActivation = activation.toDouble + potentialActivation.toDouble
 
   def isFull = numConnections >= config.seededDistalConnections
+
+  def activateIfAbove(min: Double): Unit = {
+    active = {
+      val o = overlap
+      o > min && o > 0
+    }
+  }
+
+  def activate(): Unit = active = true
+  def deactivate(): Unit = active = false
 
   def update(): Unit = {
     var act = 0
