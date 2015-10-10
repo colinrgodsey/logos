@@ -2,37 +2,49 @@ package com.colingodsey.logos.cla.traits
 
 import com.colingodsey.logos.cla.{NeuralNode, NodeAndPermanence}
 
-trait SDR extends DutyCycle {
+trait SDR extends { //DutyCycle {
   def connectionThreshold: Double
   def permanenceInc: Double
   def permanenceDec: Double
   def minDistalPermanence: Double
 
-  protected var connections: IndexedSeq[NodeAndPermanence]
+  protected val connectionBuffer = collection.mutable.Buffer[NodeAndPermanence]()
+  protected var _numConnections = 0
+  protected val connectionIndex = collection.mutable.Map[NeuralNode, Int]()
+
+  def connections = connectionBuffer.iterator.filter(_ != null)
+
+  def numConnections = _numConnections
 
   //private var connectedTo = Set[NeuralNode]()
 
-  def numConnections = connections.length
-
   def boostPermanence(): Unit = {
-    for(i <- 0 until connections.length) {
-      val np = connections(i)
+    var i = 0
+    while(i < connectionBuffer.length) {
+      val np = connectionBuffer(i)
+      if(np != null)
+        np.p = (np.p + connectionThreshold * 0.1 * math.random * 2.0)
 
-      np.p = (np.p + connectionThreshold * 0.1 * math.random)
+      i += 1
     }
   }
 
   //TODO: minActivation?
   def reinforce(): Unit = /*if(activation > minActivation)*/ {
-    for(i <- 0 until connections.length) {
-      val np = connections(i)
+    var i = 0
+    while(i < connectionBuffer.length) {
+      val np = connectionBuffer(i)
+      if(np != null) {
+        val oldP = np.p
+        val newP =
+          if (np.node.active) math.min(1.0, oldP + permanenceInc * math.random * 2.0)
+          else math.max(0.0, oldP - permanenceDec * math.random * 2.0)
 
-      val newP =
-        if (np.node.active) math.min(1.0, np.p + permanenceInc)
-        else math.max(0.0, np.p - permanenceDec)
+        if (newP != oldP)
+          np.p = newP
+      }
 
-      if(newP != np.p)
-        np.p = newP
+      i += 1
     }
   }
 
@@ -42,36 +54,63 @@ trait SDR extends DutyCycle {
     case _ => false
   }
 
-  def connectedTo(n: NeuralNode) = connections.exists(_.node == n)
+  def connectedTo(n: NeuralNode) = connectionIndex contains n
 
-  def addConnection(node: NeuralNode, p: Double) = if(!connectedTo(node)) {
+  def addConnection(node: NeuralNode, p: Double): Unit =
+    addConnection(new NodeAndPermanence(node, p))
+
+  def addConnection(np: NodeAndPermanence): Unit = if(!connectedTo(np.node)) {
+    val node = np.node
+    val p = np.p
+
     node.connectOutput()
-    connections :+= new NodeAndPermanence(node, p)
-    //connectedTo += node
+
+    var idx = 0
+    var found = false
+    while(!found && idx < connectionBuffer.length) {
+      connectionBuffer(idx) match {
+        case null =>
+          found = true
+          connectionBuffer(idx) = np
+          connectionIndex += node -> idx
+        case _ =>
+          idx += 1
+      }
+    }
+
+    if(!found) {
+      connectionIndex += node -> (connectionBuffer.length)
+      connectionBuffer.append(np)
+    }
+
+    _numConnections += 1
   }
 
-  private def removeConnection0(node: NeuralNode): Unit = if(connectedTo(node)) {
-    //connectedTo -= node
-    node.disconnectOutput()
+  def removeConnection(node: NeuralNode): Boolean = connectionIndex.get(node) match {
+    case None => false
+    case Some(idx) =>
+      connectionBuffer(idx) = null
+      node.disconnectOutput()
+      _numConnections -= 1
+      connectionIndex -= node
+      true
   }
 
-  def removeConnection(node: NeuralNode): Boolean = if(connectedTo(node)) {
-    connections = connections.filter(_.node != node)
-    removeConnection0(node)
-
-    true
-  } else false
-
-  def removeAllConnections(): Unit =
+  def removeAllConnections(): Unit = {
     connections.foreach(x => removeConnection(x.node))
+    connectionBuffer.clear()
+    connectionIndex.clear()
+    _numConnections = 0
+  }
+
 
   def pruneSynapses(): Int = if(needsPruning) {
     var pruned = 0
 
-    connections = connections filter {
+    connections foreach {
       case np if np.p < minDistalPermanence =>
         pruned += 1
-        removeConnection0(np.node)
+        removeConnection(np.node)
         false
       case _ => true
     }

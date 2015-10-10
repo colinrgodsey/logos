@@ -33,7 +33,7 @@ trait ExternalLearningLayer[L] extends TypedSequenceLayer[L] {
     }
 
     if(requiresExtraLayerNodes && extraCellsStream.length <
-        (config.segmentThreshold / 2)) Stream.empty
+        (config.segmentThreshold * 3.0 / 4.0)) Stream.empty
     else itr.toStream
   }
 

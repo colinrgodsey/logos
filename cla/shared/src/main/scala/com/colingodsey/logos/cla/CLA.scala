@@ -1,6 +1,7 @@
 package com.colingodsey.logos.cla
 
 import com.colingodsey.logos.cla.traits.MiniColumn
+import com.colingodsey.logos.qlearning.BoltzmannSelector
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -33,35 +34,35 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredActivityPercent: Double = 0.06,
+      desiredActivityPercent: Double = 0.04,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
       inputWidth: Int = 256,
-      inputConnectedPercent: Double = 0.10,
-      inputRangeSpreadPercent: Double = 0.15,//0.25,//0.15,
-      overlapPercent: Double = 0.10, //percent of input connections per column
+      inputConnectedPercent: Double = 0.25,
+      inputRangeSpreadPercent: Double = 0.50,//0.25,//0.15,
+      overlapPercent: Double = 0.035, //percent of input connections per column
 
-      segmentThresholdPercent: Double = 0.70, //percent of seededDistalPercent
-      seededDistalPercent: Double = 0.10, //percent of columns over desiredLocalActivity
-      maxDistalDendrites: Int = 64,
-      minDistalPermanence: Double = 0.01,
-      segmentDutyCycleRatio: Double = 0.2,
-      appendDistalFrequency: Double = 0.08, //chance that an active segment will make a new connection
+      segmentThresholdPercent: Double = 0.75, //percent of seeded distal
+      seededDistalPercent: Double = 2.0,//0.8, //percent of columns over desiredLocalActivity
+      maxDistalDendrites: Int = 128,
+      minDistalPermanence: Double = 0.001,
+      segmentDutyCycleRatio: Double = 0.35,
+      appendDistalFrequency: Double = 0.1, //chance that an active segment will make a new connection
 
       connectionThreshold: Double = 0.8,
-      permanenceInc: Double = 0.1,
-      permanenceDec: Double = 0.05,
+      permanenceInc: Double = 0.01,
+      permanenceDec: Double = 0.001,
       initialPermanenceVariance: Double = 0.3,
-      learningCellDuration: Int = 3, //in ticks
+      learningCellDuration: Int = 3, //in ticks, this can multiply the number of available learning nodes!
       burstCellDuration: Int = 1,
 
-      boostIncr: Double = 0.05,
-      dutyAverageFrames: Int = 70,
+      boostIncr: Double = 0.005,
+      dutyAverageFrames: Int = 300,//70,
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 4.0,
+      dynamicInhibitionRadiusScale: Double = 1.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -92,7 +93,8 @@ object CLA {
       val n = (s * 2 * math.random) - s
 
       //connectionThreshold / 2.0
-      connectionThreshold + n
+      //connectionThreshold + n
+      connectionThreshold + math.abs(n)
     }
 
     def getRandomDistalPermanence = {
@@ -100,38 +102,59 @@ object CLA {
       val n = (s * 2 * math.random) - s
 
       //connectionThreshold / 2.0
-      //connectionThreshold + n
-      connectionThreshold * 1.05
+      connectionThreshold + math.abs(n)
+      //connectionThreshold * 1.05
     }
     
     val numColumns = topology.numPoints(regionWidth)
     val numCells = numColumns * columnHeight
   }
 
-  val DefaultConfig = Config()
-  val ReducedConfig = DefaultConfig.copy(
-    //columnHeight = 16,
-    regionWidth = 128
+  val DefaultConfig = Config[RingTopology.Location]()
+  val ReducedConfig: Config[RingTopology.Location] = DefaultConfig.copy(
+    inputWidth = 180,
+    regionWidth = 128,
+    columnHeight = 26,
+    maxDistalDendrites = 80
   )
 
   type Input = IndexedSeq[Boolean]
+
+  object InputSource {
+    def empty(n: Int): InputSource = new InputSource {
+      val width: Int = n
+
+      def iterator: Iterator[Boolean] = produce.iterator
+      override val produce: Input = new Array[Boolean](width)
+    }
+  }
 
   trait InputSource {
     def width: Int
     def iterator: Iterator[Boolean]
 
     def produce: IndexedSeq[Boolean] = {
-      val builder = mutable.ArrayBuilder.make[Boolean]
-      builder.sizeHint(width)
+      val arr = new Array[Boolean](width)
+      val itr = iterator
 
-      builder ++= iterator
+      var i = 0
 
-      val res = builder.result()
+      while(i < width) {
+        arr(i) = itr.next()
+        i += 1
+      }
 
-      require(res.length == width)
-
-      res
+      arr
     }
+
+    def ++(other: InputSource): InputSource =
+      ConcatInput(this, other)
+  }
+
+  case class ConcatInput(a: InputSource, b: InputSource) extends InputSource {
+    val width = a.width + b.width
+
+    def iterator = a.iterator ++ b.iterator
   }
   
   object Topology {
@@ -208,8 +231,10 @@ object CLA {
     def uniqueNormalizedLocations(loc: Location,
         rad: Double, width: Int): Stream[Location] = {
 
-      def inner: Stream[Location] = {
-        val σ = rad
+      val σ = rad
+
+      /*def inner: Stream[Location] = {
+
         val iMax = rad//0.80/*1.0*/ / ExtraMath.normalPDF(0, σ = σ)
 
         val outStream = for {
@@ -222,11 +247,21 @@ object CLA {
         outStream append inner
       }
 
-      inner.filter(isLocationValid(_, width)).distinct
+      inner.filter(isLocationValid(_, width)).distinct*/
+
+      val inputSelector = BoltzmannSelector()
+
+      val weights = for {
+        i <- (0 to (width / 2)).toStream
+        x <- if (i == 0) Seq(0) else Seq(i, -i)
+        prob = ExtraMath.normalPDF(i, σ = σ)
+      } yield (x + loc) -> prob
+
+      inputSelector.streamFrom(weights).filter(isLocationValid(_, width)).toStream
     }
 
     def radiusOfLocations(locations: TraversableOnce[Location], width: Int): Double = {
-      var min = Double.MaxValue
+      var min = Int.MaxValue
       var max = 0
 
       locations.foreach { location =>
@@ -432,25 +467,6 @@ object DefaultShadow {
 
 }
 
-object NeuralNode {
-  trait Local[L] {
-    def loc: L
-  }
-
-  trait Mutable {
-    def activate(): Unit
-    def deactivate(): Unit
-  }
-
-  trait ActivationOrdinal {
-    def activationOrdinal: (Double, Double, Double)
-  }
-
-  trait Ordinal {
-    def ordinal: Double
-  }
-}
-
 trait NeuralNode {
   private var _numOutputs = 0
 
@@ -460,6 +476,25 @@ trait NeuralNode {
 
   def connectOutput(): Unit = _numOutputs += 1
   def disconnectOutput(): Unit = _numOutputs -= 1
+}
+
+object NeuralNode {
+  trait Local[L] { _: NeuralNode =>
+    def loc: L
+  }
+
+  trait Mutable { _: NeuralNode =>
+    def activate(): Unit
+    def deactivate(): Unit
+  }
+
+  trait ActivationOrdinal { _: NeuralNode =>
+    def activationOrdinal: (Double, Double, Double)
+  }
+
+  trait RandomOrdinal { _: NeuralNode =>
+    def randomOrdinal: Double
+  }
 }
 
 final class NodeAndPermanence(val node: NeuralNode, var p: Double)

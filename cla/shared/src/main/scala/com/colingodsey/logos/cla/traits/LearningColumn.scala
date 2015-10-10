@@ -57,9 +57,9 @@ trait LearningColumn extends MiniColumn { column =>
   //def receptiveFieldRadius = inputSegment.receptiveRadius(loc)
 
   def leastPredictiveDutyCell =
-    cells.minBy(x => (x.leastPredictiveDutyCycle, x.ordinal))
+    cells.minBy(x => (x.leastPredictiveDutyCycle, x.activeOrdinal))
   def mostPredictiveDutyCell =
-    cells.maxBy(x => (x.mostPredictiveDutyCycle, x.ordinal))
+    cells.maxBy(x => (x.mostPredictiveDutyCycle, x.activeOrdinal))
 
   /**
    * Calculate predictive state here.
@@ -110,12 +110,10 @@ trait LearningColumn extends MiniColumn { column =>
 
     //TODO: only 1 cell? or many?
     wasPredicted = if(active) {
-      val nPredictive = cells.count(_.activateIfPredicted(burstCellDuration))
-      //val nPredictive = cells.count(_.predictive)
-
+      //val nPredictive = cells.count(_.activateIfPredicted(burstCellDuration))
 
       //TODO: wasPredicted only if active this round?
-      nPredictive > 0
+      cells.exists(_.predictive)
     } else false
 
     //burst cells if not predicted

@@ -137,10 +137,17 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
   import CLA._
   import config._
 
-  val numl4cells = 8
+  val numl4cells = config.columnHeight / 4
   
-  val motorInput = new InputSDR[L]
+  val motorInput = new InputSDR[L]()(config.copy(
+    overlapPercent = config.overlapPercent / 6,
+    inputConnectedPercent = config.inputConnectedPercent * 3,
+    inputRangeSpreadPercent = config.inputRangeSpreadPercent * 2,
+    desiredActivityPercent = config.desiredActivityPercent * 1.8
+  ))
   val sensoryInput = new InputSDR[L]
+
+  def l5Updated(): Unit = {}
 
   object l6Layer extends ExternalLearningLayer[L] {
     implicit val config = region.config.copy(columnHeight = numl4cells,
@@ -161,7 +168,7 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
         new Column[L](this, loc, segment)
       }.toIndexedSeq
 
-    def extraLayerLearningNodes: Stream[NeuralNode] = l5Layer.getLearningNodes
+    def extraLayerLearningNodes: Stream[NeuralNode] = l5Layer.getLearningCells
 
     def update(): Unit = {
       //l5SDR.update(l5Layer)
@@ -171,16 +178,28 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
     }
   }
 
-  object l5Layer extends InternalLearningLayer[L] { //ExternalLearningLayer[L] {
-    implicit val config = region.config.copy(columnHeight = numl4cells,
-      maxDistalDendrites = maxDistalDendrites / 4)
+  //TODO: l5 could potentially be the only layer to have FF-like activationation without FF input
+  //IE it can produce *new* spatial projects somehow (maybe based on the
+  //  random-space thala output, or possibly just strong distal connections?)
+  object l5Layer extends ExternalLearningLayer[L] {
+    implicit val config = region.config.copy(
+      overlapPercent = region.config.overlapPercent / 3,
+      dynamicInhibitionRadiusScale = region.config.dynamicInhibitionRadiusScale * 4,
+      desiredActivityPercent = region.config.desiredActivityPercent * 0.7
+      //desiredActivityPercent = region.config.desiredActivityPercent * 2
+    )
 
-    lazy val l3SDR = new InputSDR[L](l3Layer)
+    //lazy val l3SDR = new InputSDR[L](l3Layer)
 
-    lazy val inputSource = MixInputs(l3SDR, motorInput)
+    //TODO: this also probably doesnt need feedforward from elsewhere
+    //lazy val inputSource = l3SDR ++ motorInput//MixInputs(l3SDR, motorInput) //TODO: I AM TEMP!
+    //lazy val inputSource = MixInputs(l3SDR, motorInput)
+    lazy val inputSource = l3Layer//MixInputs(l3Layer, motorInput)
     lazy val inputLayer = new InputSDR[L](inputSource)
 
     val id = "l5"
+
+    override def requiresExtraLayerNodes = true
 
     lazy val columns: IndexedSeq[Column[L]] =
       (0 until inputLayer.segments.length).map { idx =>
@@ -190,8 +209,15 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
         new Column[L](this, loc, segment)
       }.toIndexedSeq
 
+    def extraLayerLearningNodes: Stream[NeuralNode] = {
+      //we receive motorInput as feedforward, so use wasActive for context
+      //TODO: do we need motorinput context here really?
+      region.motorInput.segments.toStream.filter(_.active).sortBy(_.activationOrdinal).reverse/* ++
+          l6Layer.getCurrentLearningCells*/
+    }
+
     def update(): Unit = {
-      l3SDR.update(l3Layer)
+      //l3SDR.update(l3Layer)
       inputLayer.update(inputSource.produce)
       columns.foreach(_.update())
       columns.foreach(_.temporalPrePooler())
@@ -202,15 +228,20 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
   object l4Layer extends ExternalLearningLayer[L] {
     implicit val config = region.config.copy(
       overlapPercent = region.config.overlapPercent / 2,
-      columnHeight = numl4cells, maxDistalDendrites = maxDistalDendrites / 4)
+      //segmentThresholdPercent = region.config.segmentThresholdPercent * 0.92,
+      columnHeight = numl4cells, maxDistalDendrites = maxDistalDendrites / 2)
 
     //TODO: l6 as distal, spiny stellate as 'invisible' learning cell, spiny stellate has thala ff
-    lazy val l6SDR = new InputSDR[L](l6Layer)
+    //lazy val l6SDR = new InputSDR[L](l6Layer)
 
     //l6 may not be feedforward?
     //lazy val inputSource = MixInputs(sensoryInput, motorInput, l6SDR)
-    lazy val inputSource = MixInputs(sensoryInput, motorInput)
-    lazy val inputLayer = new InputSDR[L](inputSource)
+    //lazy val inputSource = MixInputs(sensoryInput, motorInput)
+    //lazy val inputSource = sensoryInput ++ l6SDR//MixInputs(sensoryInput, l6SDR)  //TODO: I AM TEMP!
+    //lazy val inputSource = MixInputs(sensoryInput, l6SDR)
+    //lazy val inputLayer = new InputSDR[L](inputSource)
+    lazy val inputLayer = sensoryInput
+    //def inputLayer = sensoryInput
     
     val id = "l4"
 
@@ -223,17 +254,17 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
       }.toIndexedSeq
 
     def extraLayerLearningNodes: Stream[NeuralNode] = {
-      region.motorInput.segments.toStream.filter(_.wasActive).sortBy(_.activationOrdinal).reverse ++
-          l6Layer.getLearningNodes
+      //use active wasActive motor input here cause we get FF motor via l6
+      region.motorInput.segments.toStream.filter(_.active).sortBy(_.activationOrdinal).reverse ++
+          l6Layer.getCurrentLearningCells
     }
 
     override def requiresExtraLayerNodes = true
 
     def update(): Unit = {
-      l6SDR.update(l6Layer)
+      //l6SDR.update(l6Layer)
       //if(math.random < 0.5) println(inputSource.produce.map(x => if(x) 1 else 0).mkString)
-      inputLayer.update(inputSource.produce)
-      //inputLayer.update(sensoryInput.produce)
+      //inputLayer.update(inputSource.produce)
       columns.foreach(_.update())
       columns.foreach(_.temporalPrePooler())
       columns.foreach(_.temporalPostPooler())
@@ -268,9 +299,10 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
   def update(input: Input, motor: Input): Unit = {
     sensoryInput.update(input)
     motorInput.update(motor)
-    l4Layer.update()
     l5Layer.update()
+    l5Updated()
     l6Layer.update()
+    l4Layer.update()
     l3Layer.update()
   }
 

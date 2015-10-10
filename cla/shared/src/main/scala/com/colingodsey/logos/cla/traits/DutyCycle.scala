@@ -40,7 +40,7 @@ trait DutyCycle extends NeuralNode {
       activeDutyCycle += (if(active) 1 else 0)
       overlapDutyCycle += (if(overlap >= activationThreshold) 1 else 0)
 
-      if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr * math.random
+      if(activeDutyCycle.toDouble < minDutyCycle) boost += boostIncr * math.random * 2.0
       else boost = 0
 
       //enforce all synapses a small amount

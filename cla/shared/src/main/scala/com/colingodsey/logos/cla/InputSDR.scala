@@ -2,10 +2,11 @@ package com.colingodsey.logos.cla
 
 import com.colingodsey.logos.cla.traits.SpatialPooler
 import com.colingodsey.logos.collections.RollingAverage
+import com.colingodsey.logos.qlearning.BoltzmannSelector
 
 import scala.concurrent.ExecutionContext
 
-//TODO: use sigmoid value for overlap sum
+//TODO: use boltzmann selector for input mapping
 class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] with CLA.InputSource { inputLayer =>
   import com.colingodsey.logos.cla.CLA._
   import config._
@@ -19,7 +20,10 @@ class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] w
   val inhibitionRadiusAverage = RollingAverage(dutyAverageFrames) += regionWidth
 
   var currentInput: IndexedSeq[Boolean] = Array.fill(inputWidth)(false)
-  var maxDutyCycle = 1.0
+
+  def activeSegments = segments.iterator.filter(_.active)
+
+  println("min overlap " + minOverlap)
 
   protected def createSegment(idx: Int): DendriteSegment = {
     val columnLoc = topology.columnLocationFor(idx)
@@ -37,10 +41,8 @@ class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] w
 
     val nodes = inputMap.map { iidx =>
       val inputLoc = topology.columnLocationFor(iidx)
-      val node: NeuralNode = new topology.LocalNeuralNode {
-        val loc: L = topology.scale(inputLoc, numColumns.toDouble / inputWidth)
-        def active: Boolean = currentInput(iidx)
-      }
+      val loc: L = topology.scale(inputLoc, numColumns.toDouble / inputWidth)
+      val node = new SDRInputNode(loc, iidx)
 
       new NodeAndPermanence(node, getRandomProximalPermanence)
     }.toArray
@@ -48,18 +50,25 @@ class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] w
     new DendriteSegment(nodes, activationThresholdOpt = Some(minOverlap))
   }
 
+  final class SDRInputNode(val loc: L, val iidx: Int) extends topology.LocalNeuralNode {
+    val sdr = inputLayer
+
+    def active: Boolean = sdr.currentInput(iidx)
+  }
+
   def columnsNear(loc: topology.Location, rad: Double) =
     topology.columnIndexesNear(loc, rad, regionWidth) map segments
 
-  def update(layer: Layer): Unit = update(layer.produce)
+  def update(layer: CLA.InputSource): Unit = update(layer.produce)
 
   def update(input: Input): Unit = {
     require(input.length == inputWidth,
       s"expected input width ${inputWidth} got ${input.length}")
-    this.currentInput = input
+    currentInput = input
 
     segments.foreach(_.update())
     spatialPooler()
+    activeSegments.foreach(_.reinforce())
 
     inhibitionRadiusAverage += averageReceptiveFieldRadius * dynamicInhibitionRadiusScale / inputWidth * regionWidth
   }
@@ -83,6 +92,7 @@ class InputSDR[L](implicit val config: CLA.Config[L]) extends SpatialPooler[L] w
     else s / nActive
   }
 
+  //TODO: redo this to have SDR sort everything by overlap first, then just look up scores in spatial pooler
   def neighborsIn(loc: topology.Location, radius: Double): Iterator[DendriteSegment] =
     columnsNear(loc, radius)
 

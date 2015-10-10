@@ -1,35 +1,37 @@
 package com.colingodsey.logos.cla
 
-import com.colingodsey.logos.cla.traits.{SDR, SpatialPooler}
+import com.colingodsey.logos.cla.traits.{DutyCycle, SDR, SpatialPooler}
 import com.colingodsey.logos.collections.RollingAverage
 
 //TODO: concat segments? can form SDRs of 2 sets of inputs, and concat segments
 //TODO: calculate if this has ever fired, drop if not
 final class DendriteSegment(
-      protected var connections: IndexedSeq[NodeAndPermanence] = IndexedSeq.empty,
+      val inConnections: IndexedSeq[NodeAndPermanence] = Vector.empty,
       activationThresholdOpt: Option[Int] = None)(
       implicit val config: CLA.Config[_])
-    extends SDR with NeuralNode.Mutable with NeuralNode.ActivationOrdinal with NeuralNode.Ordinal {
+    extends SDR with DutyCycle with NeuralNode.Mutable with NeuralNode.ActivationOrdinal with NeuralNode.RandomOrdinal {
   import config._
 
   var wasActive = false
-  var active = false
   var activation = 0
-  var potentialActivation = 0
   var receptive = 0
 
-  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random) += math.random
-  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += math.random
+  private var _active = false
+
+  val activeDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 0.001
+  val overlapDutyCycle = RollingAverage(dutyAverageFrames, math.random) += 0.001
   //var sequenceSegment = false
 
-  var ordinal = math.random
+  var randomOrdinal = math.random
 
   val activationThreshold: Int = activationThresholdOpt getOrElse config.segmentThreshold
+
+  inConnections.foreach(addConnection)
 
   def receptiveRadius[L](implicit cfg: CLA.Config[L]): Double = {
     val topology = cfg.topology
 
-    val locations = connections.iterator.flatMap {
+    val locations = connections.flatMap {
       case NodeAndPermanence(node: topology.LocalNeuralNode, p) if p > connectionThreshold =>
         Some(node.loc)
       case NodeAndPermanence(node: topology.LocalNeuralNode, _) =>
@@ -44,53 +46,59 @@ final class DendriteSegment(
   activation with orginal used as a tie breaker
   TODO: this is very important- can cause over convergence of sequences....
    */
-  def activationOrdinal: (Double, Double, Double) = (overlap, 0.0/*ghostActivation*/, ordinal)
-
-  def ghostActivation = activation.toDouble + potentialActivation.toDouble
+  def activationOrdinal: (Double, Double, Double) = (overlap, 0.0/*ghostActivation*/, randomOrdinal)
 
   def isFull = numConnections >= config.seededDistalConnections
 
+  val permanentOrdinal = math.random * 0.1
+
+  override def overlap: Double = {
+    val o = super.overlap
+
+    if(o > 0) o + permanentOrdinal
+    else 0
+  }
+
   def activateIfAbove(min: Double): Unit = {
-    active = {
+    _active = {
       val o = overlap
       o > min && o > 0
     }
   }
 
-  def activate(): Unit = active = true
-  def deactivate(): Unit = active = false
+  def active = _active
+
+  def activate(): Unit = _active = true
+  def deactivate(): Unit = _active = false
 
   def update(): Unit = {
     var act = 0
     var rec = 0
-    var potAct = 0
+
     var i = 0
 
-    val l = connections.length
+    val l = connectionBuffer.length
 
     while(i < l) {
-      val np = connections(i)
-      val node = np.node
-      val p = np.p
+      val np = connectionBuffer(i)
+      if(np != null) {
+        val con = np.p > connectionThreshold
 
-      val con = p > connectionThreshold
+        if (con) rec += 1
 
-      if(con) rec += 1
-      else if(node.active) potAct += 1
-
-      if(con && node.active) act += 1
+        if (con && np.node.active) act += 1
+      }
 
       i += 1
     }
 
     activation = act
     receptive = rec
-    potentialActivation = potAct
 
     wasActive = active
-    active = activation >= activationThreshold
+    _active = activation >= activationThreshold
 
-    ordinal = math.random
+    randomOrdinal = math.random
 
     if(active) {
       boost = 0.0

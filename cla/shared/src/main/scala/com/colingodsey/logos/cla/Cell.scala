@@ -6,7 +6,7 @@ import com.colingodsey.logos.collections.RollingAverage
 //TODO: when should we clear 'predictive' ?
 //TODO: actual distal segments, not just the 1 fixed one
 //TODO: this cell shares the same dendrite structure and weighting as another cell
-final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None, index: Int) extends NeuralNode with Addressable with NeuralNode.Ordinal { cell =>
+final class Cell(val column: LearningColumn, index: Int) extends NeuralNode with Addressable { cell =>
   import column.layer
   import layer.config
   import config._
@@ -20,11 +20,10 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
   private var _active = false
   var activeForTicks = 0
 
-  var ordinal = math.random
+  var activeOrdinal = math.random
 
   def predictive = _predictive
   def active = _active
-  def isShadowing = shadowCell.isDefined
 
   //TODO: verticle offsets?
   def loc = column.loc
@@ -35,9 +34,6 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
     _predictive = distalDendrite.active
   }
 
-  def newShadowDendrite = {
-
-  }
 
   def leastPredictiveDutyCycle = distalDendrite.leastActiveDutyCycle
   def mostPredictiveDutyCycle = distalDendrite.mostActiveDutyCycle
@@ -54,7 +50,7 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
   }
 
   def activate(forTicks: Int): Unit = {
-    ordinal = math.random
+    activeOrdinal = math.random
 
     _active = true
     //predictive = false
@@ -65,35 +61,23 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
   //TODO: count receptive, or no?
   //def predication = distalDendrite.mostActive.map(s => s.activation) getOrElse 0
   def activationOrdinal: (Double, Double, Double) =
-    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, ordinal)
+    distalDendrite.mostActive.map(_.activationOrdinal) getOrElse (0.0, 0.0, activeOrdinal)
 
   //def randomSegment = distalDendrite.segments((math.random * distalDendrite.segments.length).toInt)
 
-  def fillSegment(segment: DendriteSegment, learningCells: Stream[NeuralNode]): Unit = {
-    if(learningCells.nonEmpty && segment.numConnections < config.seededDistalConnections)  {
-      val cell = learningCells.head
-      segment.addConnection(cell, getRandomDistalPermanence)
-      fillSegment(segment, learningCells.tail)
-    }
-  }
+
 
   def addNewSegment(): Unit = {
-    val segment = new DendriteSegment()
-
     val learningCells = column.layer.getLearningNodes(cell.column)
 
-    if(learningCells.length < segmentThreshold) return
-
-    fillSegment(segment, learningCells)
-
-    distalDendrite.add(segment)
+    distalDendrite.createNewSegment(learningCells)
   }
 
   //TODO: after adding cell, add a 'cooldown' period
   def addLearningCellToSegment(segment: DendriteSegment): Unit = if(!segment.isFull) {
     val learningCells = column.layer.getLearningNodes(cell.column).filter(!segment.connectedTo(_))
 
-    fillSegment(segment, learningCells take 1)
+    distalDendrite.fillSegment(segment, learningCells take 1)
   }
 
   def reinforceDistal(): Unit = {
@@ -113,6 +97,7 @@ final class Cell(val column: LearningColumn, val shadowCell: Option[Cell] = None
       case (true, _) if full =>
         val toRemove = distalDendrite.leastActiveDuty
 
+        //TODO: we really need better logic on how to remove things =\
         toRemove.foreach(distalDendrite.removeSegment(_))
       case (true, Some(mostActive)) if math.random < appendDistalFrequency =>
         addLearningCellToSegment(mostActive)

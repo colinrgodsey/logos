@@ -37,13 +37,28 @@ trait SequenceLayer extends Layer {
 
   def activeColumns = columns.iterator.filter(_.active)
 
+  //this is always what 'was' active
   def getLearningCells: Stream[Cell] = {
     columns.toStream.filter(_.wasActive).sortBy { c =>
-      (!c.wasActive, !c.wasPredicted, c.oldOverlap, c.ordinal)
-    }.flatMap {
-      case column if column.wasPredicted =>
-        column.cells.filter(_.active)
-      case column => Seq(column.learningCell)
+      (!c.wasActive, /*!c.wasPredicted, */c.oldOverlap, c.ordinal)
+    }.flatMap { column =>
+      val activeCells = column.cells.filter(_.active)
+
+      if(activeCells.length == column.cells.length)
+        Seq(column.learningCell)
+      else activeCells
+    }
+  }
+
+  def getCurrentLearningCells: Stream[Cell] = {
+    columns.toStream.filter(_.active).sortBy { c =>
+      (!c.active, c.overlap, c.ordinal)
+    }.flatMap { column =>
+      val activeCells = column.cells.filter(_.active)
+
+      if(activeCells.length == column.cells.length)
+        Seq(column.learningCell)
+      else activeCells
     }
   }
 }
