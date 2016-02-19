@@ -11,20 +11,24 @@ object Logos {
 
   def buildSettings = Seq(
     name := "logos",
-    scalaVersion := "2.11.4",
+    scalaVersion := "2.11.6",
     organization := "com.colingodsey",
 
     publish := {},
     publishLocal := {},
 
     crossPaths in ThisBuild := true,
-    crossScalaVersions in ThisBuild := Seq("2.11.5", "2.10.4"),
+    crossScalaVersions in ThisBuild := Seq("2.11.6", "2.10.4"),
 
     publishTo in ThisBuild := Some(Resolver.file("file", file("../maven"))),
 
     version in ThisBuild <<= version in LocalRootProject,
     organization in ThisBuild <<= organization in LocalRootProject,
     scalaVersion in ThisBuild <<= scalaVersion in LocalRootProject,
+
+    scalacOptions in ThisBuild ++= Seq("-unchecked", "-feature"),
+
+    localUrl := ("localhost", 12345),
 
     credentials ++= userCredentials,
 
@@ -55,7 +59,27 @@ object Logos {
     testFrameworks += new TestFramework("utest.runner.Framework")
   )
 
-  def claUISettings = workbenchSettings ++ Seq(
+  def akkaSettings = Seq(
+    libraryDependencies +=
+        "com.typesafe.akka" %% "akka-actor" % "2.3.9"
+  )
+
+  def claServerSettings = akkaSettings ++ Seq(
+    resolvers += "Spray" at "http://repo.spray.io",
+    libraryDependencies += "com.wandoulabs.akka" %% "spray-websocket" % "0.1.4"
+  )
+
+  def scalaJSONSettings = Seq(
+    libraryDependencies += "com.mediamath" %%% "scala-json" % "0.2-SNAPSHOT"
+  )
+
+  def domSettings = Seq(
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "0.8.0"
+    )
+  )
+
+  def claUISettings = workbenchSettings ++ scalaJSONSettings ++ domSettings ++ Seq(
     resolvers += "mmreleases" at
       "https://artifactory.mediamath.com/artifactory/libs-release",
 
@@ -65,16 +89,13 @@ object Logos {
       "org.webjars" % "chartjs" % "1.0.2" / "Chart.min.js"
     ),
 
-    libraryDependencies ++= Seq(
-      "com.mediamath" %%% "scala-json" % "0.2-SNAPSHOT",
-      "org.scala-js" %%% "scalajs-dom" % "0.8.0"
-    ),
+    localUrl := ("localhost", 12345),
 
     skip in packageJSDependencies := false,
-    bootSnippet := "com.colingodsey.logos.cla.ui.UI().main();",
+    bootSnippet := "__createGame();",
 
-    refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile)
-    //updateBrowsers <<= updateBrowsers.triggeredBy(fastOptJS in Compile),
+    //refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile)
+    updateBrowsers <<= updateBrowsers.triggeredBy(fastOptJS in Compile)
 
   )
 }

@@ -41,7 +41,7 @@ object VecN extends MapVectorCompanion[VecN] with VecNumeric[VecN] {
 	override def apply(weights: Map[String, Double]): VecN = MapVector(weights)
 }
 
-trait VecN extends Vec with VecLike[VecN] {
+trait VecN extends Vec with VecLike[VecN] /*with Map[Any, Double]*/ {
 	def keySet: Set[String]
 
 	def companion: MapVectorCompanion[VecN]

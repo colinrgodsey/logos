@@ -1,5 +1,6 @@
 package com.colingodsey.logos.cla.ui
 
+import com.colingodsey.logos.cla.server.ServerCommands
 import com.colingodsey.logos.collections.Vec2
 import json.ObjectAccessor
 import org.scalajs.dom.raw.HTMLCanvasElement
@@ -14,18 +15,10 @@ import js.Dynamic.global
 
 import org.scalajs.dom.ext.{Color => DOMColor}
 
-object ColumnView {
-  case class Cell(active: Boolean, longActive: Boolean)
-  case class Column(cells: Seq[Cell], active: Boolean, wasPredicted: Boolean)
-  case class Data(columns: Seq[Column])
 
-  implicit val cellAcc = ObjectAccessor.of[Cell]
-  implicit val columnAcc = ObjectAccessor.of[Column]
-  implicit val dataAcc = ObjectAccessor.of[Data]
-}
 
 class ColumnView(sel: JQuery) {
-  import ColumnView._
+  import ServerCommands.ColumnView._
 
   val canvas = sel(0).asInstanceOf[HTMLCanvasElement]
   val context = canvas.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
@@ -46,7 +39,7 @@ class ColumnView(sel: JQuery) {
     }
     def drawCell(center: Vec2, cell: Cell): Unit = {
       context.beginPath()
-      context.arc(center.x, center.y, cellRadius, 0, 2 * Math.PI, false)
+      context.arc(center.x, center.y, cellRadius, 0, 2 * math.Pi, false)
       context.fillStyle = cell.active match {
         case true if column.active => "green"
         case true if cell.longActive => "blue"
@@ -68,7 +61,6 @@ class ColumnView(sel: JQuery) {
 
   def update(data: Data): Unit = {
     context.clearRect(0, 0, canvas.width, canvas.height)
-
     context.save()
 
     //context.scale(1, -1)

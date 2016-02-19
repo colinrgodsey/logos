@@ -1,6 +1,7 @@
 package com.colingodsey.logos.cla.ui
 
 import com.colingodsey.logos.collections.Vec3
+import org.scalajs.dom.raw.WebSocket
 import org.scalajs.{dom => window}
 import org.scalajs.dom.ext.{Color => DOMColor}
 import org.scalajs.jquery.{JQuery, JQueryStatic}
@@ -57,60 +58,7 @@ object DOMExt {
   }
 }
 
-object Scheduler {
-  trait Cancelable {
-    def cancel(): Unit
-
-    private[Scheduler] var isCanceled = false
-  }
-
-  def scheduleOnce(dur: FiniteDuration)(f: => Unit): Cancelable = new Cancelable {
-    private val id = js.timers.setTimeout(dur) {
-      if(!isCanceled) f
-      isCanceled = true
-    }
-
-    def cancel(): Unit = if(!isCanceled) {
-      js.timers.clearTimeout(id)
-      isCanceled = true
-    }
-  }
-
-  def scheduleEvery(every: FiniteDuration)(f: => Unit): Cancelable = new Cancelable {
-    private val id = js.timers.setInterval(every) {
-      if(!isCanceled) f
-      isCanceled = true
-    }
-
-    def cancel(): Unit = if(!isCanceled) {
-      js.timers.clearInterval(id)
-      isCanceled = true
-    }
-  }
-
-  def scheduleEvenly(dur: FiniteDuration)(f: => Future[_])(implicit ec: ExecutionContext): Cancelable = new Cancelable {
-    private var id = js.timers.setTimeout(dur)(inner)
-
-    def inner(): Unit = if(!isCanceled) {
-      val fut = f
-
-      fut.onComplete {
-        case Success(_) if isCanceled =>
-        case Success(_) =>
-          id = js.timers.setTimeout(dur)(inner)
-        case Failure(t) =>
-          t.printStackTrace()
-      }
-    }
-
-    def cancel(): Unit = if(!isCanceled) {
-      js.timers.clearTimeout(id)
-      isCanceled = true
-    }
-  }
-}
-
-class ColumnPolarComponent(sel: JQuery, width: Int) {
+class ColumnPolarComponent(parentSel: JQuery, width: Int, size: Int) {
   import DOMExt._
   import ChartJS._
 
@@ -121,7 +69,13 @@ class ColumnPolarComponent(sel: JQuery, width: Int) {
     PolarDataSet(0.0, color = randomColor(s), highlight = randomColor(s + 1), label = i.toString)
   }.toIndexedSeq
 
-  val chart = Chart(sel).PolarArea(sets.toJsArray, Chart.PolarDefaults)
+  val canvas = s"""<canvas width="$size" height="$size"></canvas>"""
+  val canvasSel = {
+    parentSel.append(canvas)
+    parentSel.find("canvas")
+  }
+
+  val chart = Chart(canvasSel).PolarArea(sets.toJsArray, Chart.PolarDefaults)
 
   def update(values: IndexedSeq[Double]): Unit = Future {
     require(values.length == width)
@@ -134,24 +88,30 @@ class ColumnPolarComponent(sel: JQuery, width: Int) {
 
     chart.update()
   }
+
+  def destroy() = {
+    canvasSel.remove()
+    chart.destroy()
+  }
 }
 
-class ColumnLineComponent(sel: JQuery, labels: Seq[String], max: Int = 120) {
+class ColumnLineComponent(sel: JQuery, labels: Seq[String], max: Int = 32) {
   import DOMExt._
   import ChartJS._
-
-  labels map { label =>
-
-  }
 
   val segments = labels.map(label => LineDataSet(label = label))
   val chart = Chart(sel).Line(LineData(js.Array(labels: _*), datasets = js.Array(segments: _*)))
 
   val legend = $.parseHTML(chart.generateLegend())
 
+  var recorded = 0
+
   sel.parent().append(chart.generateLegend())
 
-  var recorded = 0
+  def destroy() = {
+    sel.parent().find(".line-legend").remove()
+    chart.destroy()
+  }
 
   def update(values: Double*): Unit = {
     while(recorded > max) {
@@ -168,3 +128,5 @@ class ColumnLineComponent(sel: JQuery, labels: Seq[String], max: Int = 120) {
     //recorded += res.length
   }
 }
+
+

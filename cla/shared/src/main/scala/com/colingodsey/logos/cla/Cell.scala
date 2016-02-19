@@ -44,8 +44,9 @@ final class Cell(val column: LearningColumn, index: Int) extends NeuralNode with
     if(activeForTicks <= 0) deactivate()
   }
 
-  protected def deactivate(): Unit = {
+  def deactivate(): Unit = {
     _active = false
+    activeForTicks = 0
     //predictive = false
   }
 
@@ -98,6 +99,8 @@ final class Cell(val column: LearningColumn, index: Int) extends NeuralNode with
         val toRemove = distalDendrite.leastActiveDuty
 
         //TODO: we really need better logic on how to remove things =\
+
+        //TODO: new! we should update this by removing the segment that was active the least number of times (secondary sort- age)
         toRemove.foreach(distalDendrite.removeSegment(_))
       case (true, Some(mostActive)) if math.random < appendDistalFrequency =>
         addLearningCellToSegment(mostActive)

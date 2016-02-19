@@ -30,6 +30,19 @@
             display: block;
         }
 
+        div.chart ul.line-legend {
+            right: 0;
+            top: 0;
+            /*z-index: 100;*/
+            position: relative;
+        }
+
+        div.chart ul.line-legend li span {
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+        }
+
         div.column {
             display: block;
             width: 20px;
@@ -44,22 +57,46 @@
             border-bottom-width: 1px;
             margin-bottom: -1px;
         }
+
+        .hidden {
+            display: none;
+        }
     </style>
 
     <script type="text/javascript">
+        var __currentGame = null;
+
+        function __createGame() {
+            if(__currentGame) __currentGame.stop();
+            __currentGame = null;
+
+            var game = window.location.hash || "#SineGame";
+            return __currentGame = new com.colingodsey.logos.cla.ui[game.substring(1) + "Main"];
+        }
+
         $(document).ready(function() {
-            com.colingodsey.logos.cla.ui.UI().main();
+            __createGame();
+
+            window.onhashchange = __createGame;
         });
     </script>
 </head>
 <body>
-    <div class="chart">
+    <canvas id="gameboard" width="400" height="400" class="hidden"></canvas>
+    <div class="chart" id="activeDutyChart">
         <title>Active Duty</title>
-        <canvas id="activeDutyChart" width="400" height="400"></canvas>
     </div>
-    <div class="chart">
-        <title>Overlap Duty</title>
-        <canvas id="overlapDutyChart" width="400" height="400"></canvas>
+    <div class="chart" id="l3overlapDutyChart">
+        <title>l3 Overlap Duty</title>
+    </div>
+    <div class="chart" id="l4overlapDutyChart">
+        <title>l4 Overlap Duty</title>
+    </div>
+    <div class="chart" id="l5overlapDutyChart">
+        <title>l5 Overlap Duty</title>
+    </div>
+    <div class="chart" id="l6overlapDutyChart">
+        <title>l6 Overlap Duty</title>
     </div>
     <div class="chart">
         <title>Anomaly</title>

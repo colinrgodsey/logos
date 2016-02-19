@@ -16,6 +16,8 @@ import scala.collection.mutable
 //could be done with HTM- only make distal prediction when under a reward, plus get a reward for
 //correctly predicting. unfortunately changes spatial properties
 
+//TODO: selected 'state' should be the highest digit in the SDR. This should have a really high weight, and the others a very low one
+
 //TODO: thalamus should maybe affect synapse weight more if current Q is high or low. specializes in just learning reward conditions
 
 //TODO: maybe randomly weight possible 'actions' with an input like we do in -> out bits in inputSDR
@@ -34,26 +36,33 @@ class SimpleThalamus(val width: Int, val minDesiredActivity: Int) extends Thalam
   protected var currentInput: IndexedSeq[Double] = new Array[Double](width)
   protected var selectedAction: CLA.Input = new Array[Boolean](width)
 
-  def α0: Double = 0.3 //ratio of old q, higher is faster
+  def α0: Double = 0.4 //ratio of old q, higher is faster
 
-  //gamma, how much the max q of associated state is blended in
-  def γ: Double = 0.1
+  //gamma, how much the max q of associated state is added in
+  def γ: Double = 0.3
 
   @inline private def idxFor(s: State, a: Action): Int = s * width + a
 
   def getQ(s: State, a: Action): Weight =
     qValues(idxFor(s, a))
 
-  def setQ(s: State, a: Action, q: Weight): Unit =
-    qValues(idxFor(s, a)) = q
+  def setQ(s: State, a: Action, q: Weight): Unit = {
+    qValues(idxFor(s, a)) = math.max(q, 0.0)
+  }
 
   def weightsIterator(s: State): Iterator[Weight] = {
     Iterator.from(0).take(width).map(getQ(s, _))
   }
 
+
   def generateOutput(): Input = {
     val actions = selectActionWeighted(currentInput)
+    //val actions = selectActionWeighted(IndexedSeq(currentInput.max)) //TODO: hack! this only picks the top incoming 'state'
     val out = new Array[Boolean](width)
+
+    val nonZero = currentInput.count(_ != 0.0)
+
+    if(math.random < 0.01) println(s"nonZero thala state in weight $nonZero")
 
     actions.foreach(action => out(action) = true)
 
@@ -159,6 +168,12 @@ trait Thalamus extends CLA.InputSource {
     val weightsSeq =
       for(idx <- 0 until input.length; overlap = input(idx); if overlap != 0)
       yield weightsForInputAt(idx).map(pair => pair._1 -> (pair._2 * overlap))
+
+    if(math.random < 0.01 && weightsSeq.iterator.flatten.nonEmpty) {
+      val x = weightsSeq.iterator.flatten.map(_._2).max
+
+      println(s"max Q value $x")
+    }
 
     selectAction(weightsSeq, math.max(weightsSeq.length, minDesiredActivity), weightsSeq.length)
   }

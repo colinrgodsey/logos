@@ -81,8 +81,8 @@ trait LearningColumn extends MiniColumn { column =>
      */
 
     //only select new learning cell once old one is predicted or new one predicted
-    nextLearningCell = if(learningCell._predictive || hasPredictive) {
-      val max = cells.maxBy(_.activationOrdinal)
+    nextLearningCell = if(hasPredictive) {
+      val max = cells.iterator.filter(_._predictive).maxBy(_.activationOrdinal)
 
       Some(max)
     } else Some(learningCell)
@@ -123,6 +123,10 @@ trait LearningColumn extends MiniColumn { column =>
     if(active) {
       selectedLearningCell = nextLearningCell
       //selectedLearningCell.foreach(_.activateIfPredicted())
+
+      //only activate learning cell or we get 'self-predicting' balls
+      cells.foreach(_.deactivate())
+
       selectedLearningCell.foreach(_.activate(learningCellDuration))
     }
   }

@@ -1,6 +1,6 @@
 package com.colingodsey.logos.cla.ui
-
-import com.colingodsey.logos.cla.{L4Region, LearningColumn, L3Region, CLA}
+/*
+import com.colingodsey.logos.cla.{FullRegion, L4Region, L3Region, CLA}
 import com.colingodsey.logos.cla.encoders.{WeightedScalarEncoder, ScalarEncoder}
 import com.colingodsey.logos.collections.{Vec2, Vec3}
 import json._
@@ -70,8 +70,11 @@ object MotorWorker {
 
   case class RunStats(l3Score: Double,
       l4Score: Double,
+      l5Score: Double,
+      l6Score: Double,
       activeDuties: IndexedSeq[Double],
       motorOverlap: IndexedSeq[Double],
+      l5overlapDuties: IndexedSeq[Double],
       l3overlapDuties: IndexedSeq[Double],
       l4overlapDuties: IndexedSeq[Double]) {
     override lazy val hashCode: Int = productIterator.toSeq.hashCode
@@ -99,11 +102,11 @@ object MotorWorker {
   def registerPickling(): Unit = {
     Mailbox.register()
 
-    Mailbox.registry.addAccessor[Move]
-    Mailbox.registry.addAccessor[RunStats]
-    Mailbox.registry.addAccessor[BallMoved]
-    Mailbox.registry.addAccessor[Vec2]
-    Mailbox.registry.addSingleton(GetStats)
+    Mailbox.registry.add[Move]
+    Mailbox.registry.add[RunStats]
+    Mailbox.registry.add[BallMoved]
+    Mailbox.registry.add[Vec2]
+    Mailbox.registry.add(GetStats)
   }
 }
 
@@ -120,12 +123,16 @@ abstract class MotorWorker(implicit ec: ExecutionContext) extends MotorWorker.In
   val encoder = new ScalarEncoder(config.inputWidth / 4, config.minOverlap + 5, min = -worldRadius, max = worldRadius)
   val targetEncoder = new WeightedScalarEncoder(config.inputWidth / 4, config.minOverlap + 5, min = -worldRadius, max = worldRadius)
   val mEncoder = new WeightedScalarEncoder(config.inputWidth / 2, config.minOverlap + 5, min = -1, max = 1)
-  val region = new L4Region
+  //val region = new L4Region
+  val region = new FullRegion
 
   var pos = Vec2.zero
   var ballPos = Vec2(10, 10)
   var l3ScoreBuffer = List[Double]()
   var l4ScoreBuffer = List[Double]()
+  var l5ScoreBuffer = List[Double]()
+  var l6ScoreBuffer = List[Double]()
+  var theta = 0.0
 
   var movePauseDeadline = Deadline.now
   var movePaused = false
@@ -137,11 +144,20 @@ abstract class MotorWorker(implicit ec: ExecutionContext) extends MotorWorker.In
     val newPos = pos + move * speed
     val ballVec = newPos - ballPos
 
-    val newBallPos = if(ballVec.length < ballDist) {
+    /*val newBallPos = if(ballVec.length < ballDist) {
       ballPos - ballVec.normal
     } else {
       ballPos + ballVec.normal * 0.1
-    }
+    }*/
+
+    val newBallPos = Vec2(
+      math.cos(theta),
+      math.sin(theta)
+    ) * 45
+
+    theta += Math.PI / 50
+
+    if(theta > Math.PI * 2) theta -= Math.PI * 2
 
     if(newBallPos.y >= -worldRadius && newBallPos.y < worldRadius &&
         newBallPos.x >= -worldRadius && newBallPos.x < worldRadius) {
@@ -172,10 +188,12 @@ abstract class MotorWorker(implicit ec: ExecutionContext) extends MotorWorker.In
     val input = xEnc.iterator.toStream ++ yEnc.iterator ++ bxEnc.iterator.toStream ++ byEnc.iterator
     val motor = xmEnc.iterator.toStream ++ ymEnc.iterator
 
-    region.update(input, motor)
+    region.update(input.toIndexedSeq, motor.toIndexedSeq)
 
     l3ScoreBuffer = region.l3Layer.anomalyScore +: l3ScoreBuffer
     l4ScoreBuffer = region.l4Layer.anomalyScore +: l4ScoreBuffer
+    l5ScoreBuffer = region.l5Layer.anomalyScore +: l5ScoreBuffer
+    l6ScoreBuffer = region.l6Layer.anomalyScore +: l6ScoreBuffer
 
     pos
   }
@@ -189,14 +207,23 @@ abstract class MotorWorker(implicit ec: ExecutionContext) extends MotorWorker.In
     val l4score = if(l4ScoreBuffer.isEmpty) 0 else l4ScoreBuffer.sum / l4ScoreBuffer.length
     l4ScoreBuffer = Nil
 
+    val l5score = if(l5ScoreBuffer.isEmpty) 0 else l5ScoreBuffer.sum / l5ScoreBuffer.length
+    l5ScoreBuffer = Nil
+
+    val l6score = if(l6ScoreBuffer.isEmpty) 0 else l6ScoreBuffer.sum / l6ScoreBuffer.length
+    l6ScoreBuffer = Nil
+
     RunStats(
       l3Score = l3score,
       l4Score = l4score,
-      activeDuties = region.inputLayer.segments.map(_.activeDutyCycle.toDouble),
+      l5Score = l5score,
+      l6Score = l6score,
+      activeDuties = region.sensoryInput.segments.map(_.activeDutyCycle.toDouble),
       //overlapDuties = region.inputLayer.segments.map(_.overlapDutyCycle.toDouble)
       motorOverlap = region.motorInput.segments.map(_.activeOverlap),
-      l4overlapDuties = region.inputLayer.segments.map(_.activeOverlap),
-      l3overlapDuties = region.l4Input.segments.map(_.activeOverlap)
+      l5overlapDuties = region.l5Layer.inputLayer.segments.map(_.activeOverlap),
+      l4overlapDuties = region.l4Layer.inputLayer.segments.map(_.activeOverlap),
+      l3overlapDuties = region.l3Layer.inputLayer.segments.map(_.activeOverlap)
     )
   }
 }
@@ -208,8 +235,8 @@ object MotorTest extends js.JSApp { app =>
   implicit val ec = CLA.VM.newDefaultExecutionContext
 
   val uiDelay = 230.millis
-  val moveDelay = (1 / 20.0).seconds
-  val moveDuration = 5.minutes
+  val moveDelay = (1 / 200.0).seconds
+  val moveDuration = 30.minutes//5.minutes
 
   ChartJS.Chart.GlobalDefaults.animationSteps = 15//35
   ChartJS.Chart.LineDefaults.datasetFill = false
@@ -219,8 +246,10 @@ object MotorTest extends js.JSApp { app =>
   val activeDutyChart = new ColumnPolarComponent($("#activeDutyChart"), config.regionWidth)
   val l3overlapChart = new ColumnPolarComponent($("#l3overlapDutyChart"), config.regionWidth)
   val l4overlapChart = new ColumnPolarComponent($("#l4overlapDutyChart"), config.regionWidth)
+  val l5overlapChart = new ColumnPolarComponent($("#l5overlapDutyChart"), config.regionWidth)
   val motorOverlap = new ColumnPolarComponent($("#motorOverlap"), config.regionWidth)
-  val anomaly = new ColumnLineComponent($("#anomalyChart"), Seq("l3anomaly", "l4anomaly"))
+  val anomaly = new ColumnLineComponent($("#anomalyChart"),
+    Seq("l3anomaly", "l4anomaly", "l5anomaly", "l6anom"))
   val ticks = $("#ticks")
   val actor = $("#world #actor")
   val ball = $("#world #ball")
@@ -255,7 +284,8 @@ object MotorTest extends js.JSApp { app =>
         motorOverlap.update(stats.motorOverlap)
         l3overlapChart.update(stats.l3overlapDuties)
         l4overlapChart.update(stats.l4overlapDuties)
-        anomaly.update(stats.l3Score, stats.l4Score)
+        l5overlapChart.update(stats.l5overlapDuties)
+        anomaly.update(stats.l3Score, stats.l4Score, stats.l5Score)//, stats.l6Score)
         lastStats = Some(stats)
       } else Future.successful()
 
@@ -334,4 +364,4 @@ object MotorTest extends js.JSApp { app =>
     update()
     moveRandomly()
   }
-}
+}*/

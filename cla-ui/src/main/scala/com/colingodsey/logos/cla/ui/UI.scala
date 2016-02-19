@@ -1,7 +1,7 @@
 package com.colingodsey.logos.cla.ui
-
+/*
 import com.colingodsey.logos.cla.ui.ColumnView.Data
-import com.colingodsey.logos.cla.{L4Region, LearningColumn, L3Region, CLA}
+import com.colingodsey.logos.cla.{FullRegion, L4Region, L3Region, CLA}
 import com.colingodsey.logos.cla.encoders.ScalarEncoder
 import com.colingodsey.logos.collections.Vec3
 import json._
@@ -129,7 +129,8 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
 
   val encoder = new ScalarEncoder(config.inputWidth, config.minOverlap + 5)
   //val region = new L4Region
-  val region = new L3Region
+  //val region = new L3Region
+  val region = new FullRegion
   val tickDelay = 0.millis
   var ticks = 0
   var lastFunction = ""
@@ -146,7 +147,8 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
       var running = false
       val deadline = Deadline.now + 5.minutes
 
-      val jsFunction = js.Dynamic.newInstance(global.Function)(js.Array("i"), jsFunctionBody).asInstanceOf[js.Function1[Double, Double]]
+      val jsFunction = js.Dynamic.newInstance(global.Function)(
+        js.Array("i"), jsFunctionBody).asInstanceOf[js.Function1[Double, Double]]
 
       def tick(): Unit = tick(force = true)
 
@@ -156,6 +158,7 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
         val started = Deadline.now
 
         def inner(): Unit = {
+          //if(math.random < 0.05) println(encoder.encode(r / 2.0))
           region.update(encoder.encode(r / 2.0))
 
           scoreBuffer = region.l3Layer.anomalyScore +: scoreBuffer
@@ -174,6 +177,7 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
       } catch {
         case t: Throwable =>
           log("Caught error " + t.getMessage)
+          t.printStackTrace()
           error(t)
       }
 
@@ -198,9 +202,9 @@ class Worker(implicit ec: ExecutionContext) extends Worker.Interface {
 
     RunStats(
       anomalyScore = score,
-      activeDuties = region.inputLayer.segments.map(_.activeDutyCycle.toDouble),
+      activeDuties = region.l3Layer.columns.map(_.activeDutyCycle.toDouble),
       //overlapDuties = region.inputLayer.segments.map(_.overlapDutyCycle.toDouble),
-      overlapDuties = region.inputLayer.segments.map(_.overlap),
+      overlapDuties = region.l3Layer.columns.map(_.overlap),
       ticks = ticks
     )
   }
@@ -246,13 +250,13 @@ object UI extends js.JSApp {
 
   var isPaused = false
 
-  var updateTimer: Option[Scheduler.Cancelable] = None
+  var updateTimer: Option[JSScheduler.Cancellable] = None
 
   def jsFunctionBody = $("#inputFunction")(0).asInstanceOf[js.Dynamic].value.asInstanceOf[String]
 
   def update(): Unit = {
     updateTimer.foreach(_.cancel())
-    updateTimer = Some(Scheduler.scheduleEvenly(uiDelay)(doUpdate()))
+    updateTimer = Some(JSScheduler.scheduleEvenly(uiDelay)(doUpdate()))
   }
 
   def doUpdate(): Future[Unit] = workerInstance.getUIStats flatMap { stats =>
@@ -329,4 +333,4 @@ object UI extends js.JSApp {
         val line = chart.Line(lineData)*/
 
   }
-}
+}*/

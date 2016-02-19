@@ -25,7 +25,8 @@ trait SequenceLayer extends Layer {
   def anomalyScore = {
     val na = numActive.toDouble
 
-    if(na == 0) 0.0
+    //recently changed to 1.0 TODO: is this correct?
+    if(na == 0) 1.0//0.0
     else 1.0 - numActiveFromPrediction / na
   }
 

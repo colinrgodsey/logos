@@ -14,6 +14,13 @@ case class ScalarEncoder(val length: Int, size: Int,
   val lengthMinusSize = length - size
   val range = max - min
 
+  def source(x0: Double): CLA.InputSource = new CLA.InputSource {
+    def width: Int = encoder.length
+
+    def iterator: Iterator[Boolean] = produce.iterator
+    override def produce = encode(x0)
+  }
+
   def encode(x0: Double): CLA.Input = new IndexedSeq[Boolean] {
     val (areaMax, areaMin) = {
       val x = if(x0 > encoder.max) encoder.max
@@ -37,6 +44,13 @@ case class ScalarEncoder(val length: Int, size: Int,
 case class WeightedScalarEncoder(val length: Int, maxSize: Int,
     min: Double = 0.0, max: Double = 1.0) { encoder =>
   val range = max - min
+
+  def source(x0: Double, scale: Double): CLA.InputSource = new CLA.InputSource {
+    def width: Int = encoder.length
+
+    def iterator: Iterator[Boolean] = produce.iterator
+    override def produce = encode(x0, scale)
+  }
 
   def encode(x0: Double, scale: Double): CLA.Input = new IndexedSeq[Boolean] {
     val (areaMax, areaMin) = {

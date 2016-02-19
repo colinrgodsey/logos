@@ -151,7 +151,7 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
 
   object l6Layer extends ExternalLearningLayer[L] {
     implicit val config = region.config.copy(columnHeight = numl4cells,
-      maxDistalDendrites = maxDistalDendrites / 4)
+      maxDistalDendrites = maxDistalDendrites / 3)
 
     val id = "l6"
 
@@ -184,8 +184,8 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
   object l5Layer extends ExternalLearningLayer[L] {
     implicit val config = region.config.copy(
       overlapPercent = region.config.overlapPercent / 3,
-      dynamicInhibitionRadiusScale = region.config.dynamicInhibitionRadiusScale * 4,
-      desiredActivityPercent = region.config.desiredActivityPercent * 0.7
+      dynamicInhibitionRadiusScale = region.config.dynamicInhibitionRadiusScale * 2,
+      desiredActivityPercent = region.config.desiredActivityPercent / 2
       //desiredActivityPercent = region.config.desiredActivityPercent * 2
     )
 
@@ -228,6 +228,8 @@ class FullRegion[L](implicit val config: CLA.Config[L]) extends Region { region 
   object l4Layer extends ExternalLearningLayer[L] {
     implicit val config = region.config.copy(
       overlapPercent = region.config.overlapPercent / 2,
+      desiredActivityPercent = region.config.desiredActivityPercent * 2,
+      seededDistalPercent = region.config.seededDistalPercent * 0.6,
       //segmentThresholdPercent = region.config.segmentThresholdPercent * 0.92,
       columnHeight = numl4cells, maxDistalDendrites = maxDistalDendrites / 2)
 

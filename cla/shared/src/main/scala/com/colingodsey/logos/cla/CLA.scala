@@ -14,17 +14,6 @@ import scala.util.Random
 import com.colingodsey.logos.collections._
 
 /*
-reinforcement learning
-
-each(?) learning cell gets a global reward (-1, 1) at the end of a cycle.
-That learning cell also fires a global reward when selected (positive or negative).
-Columns are sorted by reward and selected for action
-Some columns have no action (critical for idleness)
- */
-
-//TODO: dynamic thresholds?
-
-/*
 Future ideas:
   Neurotransmitter-like VecN 'cloud'. Eventual localized distribution of modulator values (VecN?)
 
@@ -34,7 +23,7 @@ Future ideas:
 object CLA {
   case class Config[L](
       regionWidth: Int = 2048,
-      desiredActivityPercent: Double = 0.04,
+      desiredActivityPercent: Double = 0.12,
       columnHeight: Int = 32,
       columnDutyCycleRatio: Double = 0.5,
 
@@ -44,7 +33,7 @@ object CLA {
       overlapPercent: Double = 0.035, //percent of input connections per column
 
       segmentThresholdPercent: Double = 0.75, //percent of seeded distal
-      seededDistalPercent: Double = 2.0,//0.8, //percent of columns over desiredLocalActivity
+      seededDistalPercent: Double = 1.8, //percent of columns over desiredLocalActivity
       maxDistalDendrites: Int = 128,
       minDistalPermanence: Double = 0.001,
       segmentDutyCycleRatio: Double = 0.35,
@@ -62,7 +51,7 @@ object CLA {
 
       topology: Topology[L] = RingTopology,
       dynamicInhibitionRadius: Boolean = true,
-      dynamicInhibitionRadiusScale: Double = 1.0,
+      dynamicInhibitionRadiusScale: Double = 2.0,
 
       specificNumWorkers: Option[Int] = None
   ) {
@@ -77,6 +66,8 @@ object CLA {
     }
     val seededDistalConnections = math.ceil((1 + seededDistalPercent) * desiredLocalActivity + 1).toInt
     val segmentThreshold = math.ceil(segmentThresholdPercent * seededDistalConnections).toInt
+
+    val inhibitionRadiusMinimum = math.max(desiredLocalActivity / 2, 1)
 
     /*require(segmentThreshold >= desiredLocalActivity,
       s"segmentThreshold($segmentThreshold) < desiredLocalActivity ($desiredLocalActivity). " +

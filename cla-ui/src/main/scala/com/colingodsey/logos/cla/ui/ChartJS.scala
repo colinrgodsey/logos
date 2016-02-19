@@ -3,10 +3,12 @@ package com.colingodsey.logos.cla.ui
 import org.scalajs.dom.raw.HTMLCanvasElement
 import org.scalajs.jquery.JQuery
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration._
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportAll
 
+//TODO: redo with js.Object style class tree with objects
 object ChartJS {
   import com.colingodsey.logos.cla.ui.DOMExt._
 
@@ -25,7 +27,7 @@ object ChartJS {
     def apply(sel: JQuery): Chart = {
       require(sel.length > 0, "empty jquery selection!")
 
-      val ctx = sel(0).asInstanceOf[HTMLCanvasElement].getContext("2d")
+      val ctx = sel.get(0).asInstanceOf[HTMLCanvasElement].getContext("2d")
       val config = PolarDefaults
 
       js.Dynamic.newInstance(jsObject)(ctx, config).asInstanceOf[Chart]
@@ -48,9 +50,12 @@ object ChartJS {
       curAnimCompletePromise = Promise()
     }
 
-    def onAnimationComplete(f: => Unit): Future[Unit] = {
-      f
-      curAnimCompletePromise.future
+    def onAnimationComplete(f: => Unit)(implicit ec: ExecutionContext): Future[Unit] = {
+      for {
+        _ <- timerFuture(10.millis)
+        _ = f
+        _ <- curAnimCompletePromise.future
+      } yield ()
     }
 
   }
@@ -70,6 +75,7 @@ object ChartJS {
   final class Line extends js.Any {
     var datasets: js.Array[LineSegment] = js.native
     def update(): Unit = js.native
+    def destroy(): Unit = js.native
     def addData(values: js.Array[Double], label: String): Unit = js.native
     def removeData(): Unit = js.native
     def generateLegend(): String = js.native
@@ -80,12 +86,16 @@ object ChartJS {
       label: String,
       data: js.Array[Double] = js.Array(),
       fillColor: js.UndefOr[Color] = randomColor: Color,
-      strokeColor: js.UndefOr[Color] = randomColor: Color,
-      pointColor: js.UndefOr[Color] = randomColor: Color,
-      pointStrokeColor: js.UndefOr[Color] = randomColor: Color,
+      //strokeColor: js.UndefOr[Color] = randomColor: Color,
+      //pointColor: js.UndefOr[Color] = randomColor: Color,
+      //pointStrokeColor: js.UndefOr[Color] = randomColor: Color,
       pointHighlightFill: js.UndefOr[Color] = randomColor: Color,
       pointHighlightStroke: js.UndefOr[Color] = randomColor: Color
-  )
+  ) {
+    def pointColor: js.UndefOr[Color] = fillColor
+    def strokeColor: js.UndefOr[Color] = fillColor
+    def pointStrokeColor: js.UndefOr[Color] = fillColor
+  }
 
   @JSExportAll
   case class LineData(labels: js.Array[String], datasets: js.Array[LineDataSet])
@@ -98,6 +108,7 @@ object ChartJS {
   final class PolarArea extends js.Any {
     var segments: js.Array[PolarAreaSegment] = js.native
     def update(): Unit = js.native
+    def destroy(): Unit = js.native
   }
 
   type PolarData = js.Array[PolarDataSet]
