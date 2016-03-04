@@ -2,7 +2,7 @@ lazy val collections = crossProject.in(file("collections"))
     .settings(name := "logos-collections")
     .settings(Logos.commonSettings: _*)
     .jsSettings(scalaJSStage in Global := FastOptStage)
-    .jvmSettings(scalacOptions ++= Seq("-optimise"))
+    .jvmSettings(fork in Test := true)
 lazy val collectionsJVM = collections.jvm.dependsOn(macros)
 lazy val collectionsJs = collections.js.dependsOn(macros)
 
@@ -39,10 +39,7 @@ lazy val claJs = cla.js
 
 lazy val macros = project.in(file("macros"))
     .settings(Logos.commonSettings: _*)
-    .settings(
-      name := "logos-macros",
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
-    )
+    .settings(Logos.macroSettings: _*)
 
 lazy val claServerInterface = crossProject.in(file("cla/server-interface"))
     .settings(name := "logos-cla-server-interface")

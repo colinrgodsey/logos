@@ -9,16 +9,23 @@ import com.lihaoyi.workbench.Plugin._
 object Logos {
   def userCredentials = (Path.userHome / ".ivy2" / "credentials" ** "*").filter(_.isFile).get.map(Credentials(_))
 
+  val baseScalaVersion = "2.11.6"
+
   def buildSettings = Seq(
     name := "logos",
-    scalaVersion := "2.11.6",
+    scalaVersion := baseScalaVersion,
     organization := "com.colingodsey",
 
     publish := {},
     publishLocal := {},
 
     crossPaths in ThisBuild := true,
-    crossScalaVersions in ThisBuild := Seq("2.11.6", "2.10.4"),
+    crossScalaVersions in ThisBuild := Seq("2.12.0-M3", baseScalaVersion, "2.10.4"),
+
+    scalacOptions in ThisBuild ++= Seq(scalaVersion.value match {
+      case x if x.startsWith("2.12.") => "-target:jvm-1.8"
+      case x => "-target:jvm-1.6"
+    }),
 
     publishTo in ThisBuild := Some(Resolver.file("file", file("../maven"))),
 
@@ -53,15 +60,29 @@ object Logos {
         </developers>
   )
 
-  //todo: ditch?
   def commonSettings = Seq(
-    libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.0" % "test",
+    //temp resolver for utest on 2.12.0-M3
+    resolvers += "mvn repo" at "https://raw.githubusercontent.com/colinrgodsey/maven/master",
+    libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.1" % "test",
     testFrameworks += new TestFramework("utest.runner.Framework")
+  ) ++ macroDeps
+
+  def macroDeps = Seq(
+    addCompilerPlugin("org.scalamacros" % s"paradise" % "2.1.0" cross CrossVersion.full),
+
+    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
+    libraryDependencies <++= scalaVersion {
+      case x if x.startsWith("2.10.") => Seq(
+        "org.scalamacros" %% s"quasiquotes" % "2.0.0"
+      )
+      case x => Nil
+    }
   )
 
+  def macroSettings = Seq(name := "logos-macros") ++ macroDeps
+
   def akkaSettings = Seq(
-    libraryDependencies +=
-        "com.typesafe.akka" %% "akka-actor" % "2.3.9"
+    libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.3.9"
   )
 
   def claServerSettings = akkaSettings ++ Seq(
@@ -70,13 +91,11 @@ object Logos {
   )
 
   def scalaJSONSettings = Seq(
-    libraryDependencies += "com.mediamath" %%% "scala-json" % "0.2-SNAPSHOT"
+    libraryDependencies += "com.mediamath" %%% "scala-json" % "1.0-SNAPSHOT"
   )
 
   def domSettings = Seq(
-    libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "0.8.0"
-    )
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.8.0"
   )
 
   def claUISettings = workbenchSettings ++ scalaJSONSettings ++ domSettings ++ Seq(

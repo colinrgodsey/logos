@@ -134,7 +134,7 @@ object RingSortTest extends TestSuite {
 
       val perc = (sortTime.toNanos.toDouble / ringTime.toNanos - 1) * 100.0
 
-      println(perc + "% faster ring sort time")
+      perc + "% faster ring sort time"
     }
   }
 }

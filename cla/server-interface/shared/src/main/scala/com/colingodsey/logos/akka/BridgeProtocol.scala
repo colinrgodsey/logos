@@ -10,30 +10,21 @@ object BridgeProtocol {
   object Message {
     import AccessorRegistry.anyAccessor
 
-    implicit val acc = ObjectAccessor.of[Message]
+    implicit val acc = ObjectAccessor.create[Message]
   }
 
-  case class Watch(foreignRef: String) extends BridgeProtocol
-  object Watch {
-    implicit val acc = ObjectAccessor.of[Watch]
-  }
+  @accessor case class Watch(foreignRef: String) extends BridgeProtocol
 
-  case class ForeignDeath(foreignRef: String) extends BridgeProtocol
-  object ForeignDeath {
-    implicit val acc = ObjectAccessor.of[ForeignDeath]
-  }
+  @accessor case class ForeignDeath(foreignRef: String) extends BridgeProtocol
 
-  case class KillForeign(foreignRef: String) extends BridgeProtocol
-  object KillForeign {
-    implicit val acc = ObjectAccessor.of[KillForeign]
-  }
+  @accessor case class KillForeign(foreignRef: String) extends BridgeProtocol
 
   //send a message to the remote session actor itself.
   case class Identify(msg: Any, foreignRef: String) extends BridgeProtocol
   object Identify {
     import AccessorRegistry.anyAccessor
 
-    implicit val acc = ObjectAccessor.of[Identify]
+    implicit val acc = ObjectAccessor.create[Identify]
   }
 
   case object Tick extends BridgeProtocol
@@ -41,16 +32,16 @@ object BridgeProtocol {
 
   case object SessionEndpoint
 
-  object registry extends AccessorRegistry
-
-  registry.add[Message]
-  registry.add[Watch]
-  registry.add[ForeignDeath]
-  registry.add[KillForeign]
-  registry.add[Identify]
-  registry.add(SessionEndpoint)
-  registry.add(Tick)
-  registry.add(Tock)
+  object registry extends AccessorRegistry {
+    registry.add[Message]
+    registry.add[Watch]
+    registry.add[ForeignDeath]
+    registry.add[KillForeign]
+    registry.add[Identify]
+    registry.add(SessionEndpoint)
+    registry.add(Tick)
+    registry.add(Tock)
+  }
 
   AccessorRegistry.add(registry)
 

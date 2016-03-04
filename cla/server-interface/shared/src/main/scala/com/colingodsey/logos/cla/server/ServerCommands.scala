@@ -18,15 +18,9 @@ object ServerCommands {
   sealed trait RegionCommand extends Command
   sealed trait RegionResponse extends Response
 
-  case class ThalamicInput(input: CLA.Input) extends RegionCommand
-  object ThalamicInput {
-    implicit val acc = ObjectAccessor.of[ThalamicInput]
-  }
+  @accessor case class ThalamicInput(input: CLA.Input) extends RegionCommand
 
-  case class SensoryInput(input: CLA.Input) extends RegionCommand
-  object SensoryInput {
-    implicit val acc = ObjectAccessor.of[SensoryInput]
-  }
+  @accessor case class SensoryInput(input: CLA.Input) extends RegionCommand
 
   sealed trait Layer extends Layer.Value {
     def key: String = toString.toLowerCase
@@ -41,7 +35,7 @@ object ServerCommands {
     val values = Set[Layer](L1, L3, L4, L5, L6)
   }
 
-  case class RunStats(
+  @accessor case class RunStats(
       l3anomalyScore: Double,
       l4anomalyScore: Double,
       l5anomalyScore: Double,
@@ -52,54 +46,44 @@ object ServerCommands {
       l5overlapDuties: IndexedSeq[Double],
       l6overlapDuties: IndexedSeq[Double],
       ticks: Int)
-  object RunStats {
-    implicit val acc = ObjectAccessor.of[RunStats]
-  }
 
-  case class GetColumnView(layer: Layer)
-  object GetColumnView {
-    implicit val acc = ObjectAccessor.of[GetColumnView]
-  }
+  @accessor case class GetColumnView(layer: Layer)
 
   case object GetStats
   case object StartAuto
   case object StopAuto
 
   object ColumnView {
-    case class Cell(active: Boolean, longActive: Boolean)
-    case class Column(cells: Seq[Cell], active: Boolean, wasPredicted: Boolean)
-    case class Data(columns: Seq[Column])
-
-    implicit val cellAcc = ObjectAccessor.of[Cell]
-    implicit val columnAcc = ObjectAccessor.of[Column]
-    implicit val dataAcc = ObjectAccessor.of[Data]
+    @accessor case class Cell(active: Boolean, longActive: Boolean)
+    @accessor case class Column(cells: Seq[Cell], active: Boolean, wasPredicted: Boolean)
+    @accessor case class Data(columns: Seq[Column])
   }
 
   object SineGame {
-    case class Start(regionWidth: Int)
-    case class NeedDataPoints(n: Int)
-    case class DataPoints(x: Seq[Double])
+    @accessor case class Start(regionWidth: Int)
+    @accessor case class NeedDataPoints(n: Int)
+    @accessor case class DataPoints(x: Seq[Double])
 
     case object RunOne
     case object ClearPoints
 
     def register(): Unit = {
-      registry.add(ObjectAccessor.of[Start],
-        ObjectAccessor.of[NeedDataPoints],
-        ObjectAccessor.of[RunStats],
-        ObjectAccessor.of[DataPoints])
+      registry.add(accessorOf[Start],
+        accessorOf[NeedDataPoints],
+        accessorOf[RunStats],
+        accessorOf[DataPoints])
       registry.add(RunOne)
       registry.add(ClearPoints)
     }
   }
 
-  implicit val vec2Acc = ObjectAccessor.of[Vec2]
+  implicit val vec2Acc = ObjectAccessor.create[Vec2]
 
   object GoalGame {
-    case class Start(regionWidth: Int)
+    @accessor case class Start(regionWidth: Int)
 
-    case class ActorPosition(pos: Vec2, dir: Double)
-    case class TActorPosition(pos: Vec2, dir: Double)
+    @accessor case class ActorPosition(pos: Vec2, dir: Double)
+    @accessor case class TActorPosition(pos: Vec2, dir: Double)
 
     case object RunOne
     case object Bump
@@ -107,9 +91,9 @@ object ServerCommands {
 
     def register(): Unit = {
       registry.add(
-        ObjectAccessor.of[ActorPosition],
-        ObjectAccessor.of[TActorPosition],
-        ObjectAccessor.of[Start]
+        accessorOf[ActorPosition],
+        accessorOf[TActorPosition],
+        accessorOf[Start]
       )
       registry.add(RunOne)
       registry.add(Bump)

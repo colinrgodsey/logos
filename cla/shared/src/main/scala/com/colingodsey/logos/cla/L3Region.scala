@@ -382,7 +382,7 @@ class L4Region[L](implicit val config: CLA.Config[L]) extends Region { region =>
   def update(input: Input): Unit =
     update(input, IndexedSeq.empty)
 }
-
+/*
 //used to track 'active state'
 trait ColumnState {
   type IndexAndUpdate = {
@@ -408,4 +408,4 @@ trait RegionState {
 //holds the 'connectivity' / logic. the results of learning.
 trait LearningState {
 
-}
+}*/
