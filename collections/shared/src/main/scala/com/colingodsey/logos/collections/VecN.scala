@@ -25,8 +25,8 @@ case class MapVector(override val weights: Map[String, Double]) extends VecN {
 
 //TODO: this should store mutations internally and resolve values when retrieved
 case class VecNUnit(scale: Double = 1, offset: Double = 0) extends VecN {
-	override def length: Double = Double.PositiveInfinity
-	override def normal: VecN = sys.error("No normal for VecNOne") //technically VeN.origin
+	override lazy val length: Double = Double.PositiveInfinity
+	override lazy val normal: VecN = sys.error("No normal for VecNOne") //technically VeN.origin
 
 	override def companion = VecN
 
@@ -41,7 +41,7 @@ object VecN extends MapVectorCompanion[VecN] with VecNumeric[VecN] {
 	override def apply(weights: Map[String, Double]): VecN = MapVector(weights)
 }
 
-trait VecN extends Vec with VecLike[VecN] {
+trait VecN extends Vec with VecLike[VecN] /*with Map[Any, Double]*/ {
 	def keySet: Set[String]
 
 	def companion: MapVectorCompanion[VecN]
@@ -76,7 +76,9 @@ trait VecN extends Vec with VecLike[VecN] {
 		}.toMap)
 	}
 	def * (scale: Double): VecN = {
-		companion(weights.iterator.map { case (k, v) =>
+    if(scale == 1) this
+    else if(scale == 0) VecN.zero
+		else companion(weights.iterator.map { case (k, v) =>
 			k -> (apply(k) * scale)
 		}.toMap)
 	}
@@ -85,4 +87,8 @@ trait VecN extends Vec with VecLike[VecN] {
 	def toVecN: VecN = this
 
 	def isAxisAligned: Boolean = weights.count(_._2 != 0) == 1
+
+  override lazy val normal = super.normal
+  override lazy val length = super.length
+  override lazy val safeNormal = super.safeNormal
 }

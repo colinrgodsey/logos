@@ -5,7 +5,11 @@ import com.colingodsey.logos.collections.{VecN, Vec}
 import scala.annotation.tailrec
 
 trait Selector {
-  def selectFrom[T](policy: Map[T, Double]): T
+  def selectFrom[T](policy: TraversableOnce[(T, Double)]): T
+  def streamFrom[T](policy: TraversableOnce[(T, Double)]): Iterator[T]
+
+  def selectFrom[T](policy: Map[T, Double]): T =
+    selectFrom(policy.iterator)
 
   def selectFrom[T](vals: Set[T])(f: T => Double): T =
     selectFrom(vals.map(x => x -> f(x)).toMap)
@@ -13,10 +17,11 @@ trait Selector {
 
 
 trait QLearningValues {
-  //gamma, how much the max q of associated state is blended in
-  //higer means more foresight
+  //gamma, how much the max q of associated state is blended in. higer means more foresight
   def γ: Double
-  def α0: Double //alpha, familiarity
+
+  //alpha, familiarity, learning factor. higher means slower
+  def α0: Double
 
   def gamma = γ
   def alpha0 = α0
@@ -33,11 +38,18 @@ trait QLearning[T] extends QLearningValues {
   def dot(a: T, b: T): Double
   def scale(a: T, b: Double): T
 
+
+  //old + rate(r + gamma * max - old)
+
+  //max = estimate of optimal future value
   def update(oldQ: T, maxNextQ: T, reward: T): T = {
     //reward + oldQ * α0 + maxNextQ * (1.0 - α0)
+    //oldQ + α0 * (r + γ * max - oldQ)
     plus(
       plus(reward, scale(oldQ, α0)),
-      scale(maxNextQ, 1.0 - α0))
+      scale(scale(maxNextQ, γ), 1.0 - α0))
+
+    ???
   }
 
   def policy[U](actions: Map[U, T]): U = {

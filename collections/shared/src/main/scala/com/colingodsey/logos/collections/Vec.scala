@@ -1,5 +1,7 @@
 package com.colingodsey.logos.collections
 
+import scala.util.Random
+
 object Vec {
   def zero[T <: Vec](implicit vb: VecCompanion[T]) = vb.zero
 
@@ -100,6 +102,13 @@ def to[U <: Vec](implicit builder: CanBuildFrom[This, Double, U]): U*/
     /*if(l == 0) companion.zero
     else */if(l == 1) toVec
     else toVec / l
+  }
+
+  def safeNormal: Coll = {
+    val l = length
+    if(l == 0) companion.zero
+    else if(l == 1) toVec
+    else normal
   }
 
   def length1: Double = values.foldLeft(0.0)(_ + math.abs(_))
@@ -211,7 +220,8 @@ object Vec2 extends VecCompanion[Vec2] with VecNumeric[Vec2] {
 
   def dimensions: Dimensions = Dimensions.Two
 
-  def random = (Vec2(math.random, math.random) * 2 - Vec2.one).normal
+  def randomNonNormal = Vec2(math.random * 2 - 1, math.random * 2 - 1)
+  def random = randomNonNormal.normal
 
   def apply(x: Vec): Vec2 = x match {
     case x: Vec2 => x
@@ -253,8 +263,15 @@ object Vec3 extends VecCompanion[Vec3] with VecNumeric[Vec3] {
   val my = -y
   val mz = -z
 
-  def random = (Vec3(math.random, math.random,
+  def random: Vec3 = (Vec3(math.random, math.random,
     math.random) * 2 - Vec3.one).normal
+
+  def random(seed: Int): Vec3 = {
+    val r = new Random(seed)
+
+    (Vec3(r.nextDouble(), r.nextDouble(),
+      r.nextDouble()) * 2 - Vec3.one).normal
+  }
 
   def dimensions: Dimensions = Dimensions.Two
 

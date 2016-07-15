@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>CLA UI</title>
+    <script type="text/javascript" src="/workbench.js"></script>
+    <script type="text/javascript" src="../logos-cla-ui-jsdeps.js"></script>
+    <script type="text/javascript" src="../logos-cla-ui-fastopt.js"></script>
+
+    <style type="text/css">
+        #testflot {
+            width: 600px;
+            height:300px;
+        }
+
+        #inputFunction {
+            width: 300px;
+            height: 300px;
+        }
+
+        body div {
+            margin: 5px;
+        }
+
+        div.chart {
+            display: inline-block;
+            border: 1px solid #000;
+            position: relative;
+        }
+
+        div.chart title {
+            display: block;
+        }
+
+        div.chart ul.line-legend {
+            right: 0;
+            top: 0;
+            z-index: 100;
+            position: absolute;
+        }
+
+        div.chart ul.line-legend li span {
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+        }
+        
+        #world {
+            border: 1px solid #000;
+            width: 300px;
+            height: 300px;
+            display: inline-block;
+            position: relative;
+        }
+
+        #world .object {
+            width: 6px;
+            height: 6px;
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            margin-left: 147px;
+            margin-top: 147px;
+        }
+
+        #world #actor {
+            background-color: #222;
+        }
+
+        #world #ball {
+            background-color: #0F0;
+        }
+    </style>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            com.colingodsey.logos.cla.ui.MotorTest().main();
+        });
+    </script>
+</head>
+<body>
+    <div id="world">
+        <div id="actor" class="object"></div>
+        <div id="ball" class="object"></div>
+    </div>
+    <div class="chart">
+        <title>Active Duty</title>
+        <canvas id="activeDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>L5 Overlap</title>
+        <canvas id="l5overlapDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>L4 Overlap</title>
+        <canvas id="l4overlapDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>L3 Overlap</title>
+        <canvas id="l3overlapDutyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>Anomaly</title>
+        <canvas id="anomalyChart" width="400" height="400"></canvas>
+    </div>
+    <div class="chart">
+        <title>Motor Overlap</title>
+        <canvas id="motorOverlap" width="400" height="400"></canvas>
+    </div>
+</body>
+</html>

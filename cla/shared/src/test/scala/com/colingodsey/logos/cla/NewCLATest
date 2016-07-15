@@ -1,0 +1,102 @@
+package com.colingodsey.logos.cla
+
+import utest._
+
+
+
+object NewCLATest extends TestSuite {
+  val tests = TestSuite {
+
+  }
+}
+
+
+class BaseTestRegion { region =>
+  val regionWidth = 128
+  val cellDepth = 8
+  val maxConnections = 32
+  val activationThreshold: Int = 20
+  val maxDistal = 16
+  val permanenceDecr: Int = Int.MaxValue / 10
+  val permanenceIncr: Int = Int.MaxValue / 16
+  val desiredLocalActivity: Int = regionWidth / 10
+  val connectionThreshold: Int = (Int.MaxValue.toLong * 6 / 10).toInt
+  val globalInputLength = cellDepth * regionWidth //numcells
+
+  //these 2 states are entirely mutable and never re-allocated
+  val currentState = new RegionState
+  val lastState = new RegionState
+
+  trait SharedState {
+    def setPrediction(nodeIdx: Int, value: Boolean): Unit =
+      currentState.prediction(nodeIdx: Int) = value
+
+    /**
+      * Prediction is always written to current state, read from previous state.
+      * This selects the 'learning' cells out of any activation range. This range
+      * is copied after the frame and used for learning cell reference in the next frame.
+      * It is then cleared for the new frame.
+      **/
+    private[cla] def getPrediction(nodeIdx: Int): Boolean =
+      lastState.prediction(nodeIdx)
+
+    private[cla] val activation: Array[Byte] = currentState.activation
+  }
+
+  val Layer1 = new MutableLayerState(
+    regionWidth = regionWidth,
+    cellDepth = 8,
+    maxConnections = 16,
+    maxDistal = 16
+  ) with SharedState with LocalRegionalLayer {
+    val overlapBuffer = new Array[Short](regionWidth)
+    val ordinalBuffer = new Array[Byte](regionWidth)
+
+    val sharedIndexOffset = 0
+
+    def inputActivationIndex: Int = globalInputIndex
+    def inputLength: Int = globalInputLength
+  }
+
+  val totalActivationLength = Layer1.maxIdx
+  val globalInputIndex = totalActivationLength
+  val totalNodeLength = globalInputIndex + globalInputLength
+
+  /**
+    * Copy current state to 'last state' and decrement activations in current state
+    */
+  def swapState(): Unit = {
+    for(idx <- 0 until currentState.activation.length) {
+      val curActivation = currentState.activation(idx)
+
+      lastState.activation(idx) = curActivation
+
+      if(curActivation > 0) currentState.activation(idx) = (curActivation - 1).toByte
+
+      lastState.prediction(idx) = currentState.prediction(idx)
+
+      currentState.prediction(idx) = false
+    }
+  }
+
+  class RegionState {
+    val activation = new Array[Byte](totalActivationLength)
+    val prediction = new Array[Boolean](totalActivationLength)
+  }
+
+  trait LocalRegionalLayer extends LayerSpatialPooler { _: MutableLayerState =>
+    def layerState: MutableLayerState = this
+
+    def regionWidth: Int = region.regionWidth
+    def boostDivisor: Int = region.boostDivisor
+    def permanenceDecr: Int = region.permanenceDecr
+    def permanenceIncr: Int = region.permanenceIncr
+    def desiredLocalActivity: Int = region.desiredLocalActivity
+
+    def connectionThreshold: Int = region.connectionThreshold
+    def activationThreshold: Int = region.activationThreshold
+
+    //incorporates radius, topology, etc
+    def getInhibitionNeighborLocalIdx(localColumnIdx: Int): Iterator[Int] = ???
+  }
+}
