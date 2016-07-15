@@ -2,7 +2,8 @@ package akka.actor
 
 import java.net.URI
 
-import akka.actor.internal.{PropsMaker, Cell}
+import akka.util.Timeout
+import internal.{PropsMaker, Cell}
 import akka.event.LoggingAdapter
 
 import scala.collection.mutable
@@ -10,28 +11,32 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.experimental.macros
 
-case class Terminated(ref: ActorRef)
+import scala.scalajs.js
+import scala.util.control.NoStackTrace
 
-case class Timeout(dur: FiniteDuration)
+case class Terminated(ref: ActorRef)
 
 trait ActorLogging { _: Actor =>
   lazy val log = new ActorLoggingAdapter(self, context.system)
 }
 
-class ActorLoggingAdapter(ref: ActorRef, system: ActorSystem) extends LoggingAdapter {
-  def prefix = s"[${ref.toString}] "
+class ActorLoggingAdapter(ref: ActorRef, system: ActorSystem) extends AbstractLoggingAdapter(ref.toString, system)
+
+class AbstractLoggingAdapter(ref: String, system: ActorSystem) extends LoggingAdapter {
+  def dateStamp = new js.Date
+  def prefix = s"[$dateStamp] [$ref] "
 
   def isErrorEnabled: Boolean = system.log.isErrorEnabled
   def isInfoEnabled: Boolean = system.log.isInfoEnabled
   def isWarningEnabled: Boolean = system.log.isWarningEnabled
   def isDebugEnabled: Boolean = system.log.isDebugEnabled
 
-  def warning(msg: => String): Unit = system.log.warning(prefix + msg)
-  def warning(cause: Throwable, msg: => String): Unit = system.log.warning(cause, prefix + msg)
-  def error(msg: => String): Unit = system.log.error(prefix + msg)
-  def error(cause: Throwable, msg: => String): Unit = system.log.error(cause, prefix + msg)
-  def debug(msg: => String): Unit = system.log.debug(prefix + msg)
-  def info(msg: => String): Unit = system.log.info(prefix + msg)
+  def warning(msg: => String): Unit = system.log.warning("[WARN] " + prefix + msg)
+  def warning(cause: Throwable, msg: => String): Unit = system.log.warning(cause, "[WARN] " + prefix + msg)
+  def error(msg: => String): Unit = system.log.error("[ERROR] " + prefix + msg)
+  def error(cause: Throwable, msg: => String): Unit = system.log.error(cause, "[ERROR] " + prefix + msg)
+  def debug(msg: => String): Unit = system.log.debug("[DEBUG] " + prefix + msg)
+  def info(msg: => String): Unit = system.log.info("[INFO] " + prefix + msg)
 }
 
 trait ActorContext {
@@ -88,7 +93,12 @@ trait ActorPath {
   def address: Address
   def reversePath: List[String]
 
+  private[akka] def uid: Int
+  private[akka] def withUid(uid: Int): ActorPath
+
   def safeName = URIEncoding.encode(name)
+
+  def uidString = if(uid == 0) "" else s"#$uid"
 
   def /(child: String): ActorPath = ChildActorPath(this, child)
 
@@ -110,22 +120,27 @@ object ActorPath {
   }
 }
 
-final case class ChildActorPath private[akka](parent: ActorPath, name: String) extends ActorPath {
+final case class ChildActorPath private[akka](parent: ActorPath, name: String, uid: Int = 0) extends ActorPath {
   lazy val root: RootActorPath = parent.root
   lazy val address: Address = root.address
 
   def reversePath: List[String] = name +: parent.reversePath
 
-  override lazy val toString = s"$parent/$safeName"
+  override lazy val toString = s"$parent/$safeName$uidString"
+
+  private[akka] def withUid(uid: Int): ActorPath = copy(uid = uid)
 }
 
 final case class RootActorPath private[akka](address: Address) extends ActorPath {
   def root: RootActorPath = this
   def parent: ActorPath = this
+  def uid = 0
 
   def name: String = "/"
 
   def reversePath: List[String] = Nil
+
+  private[akka] def withUid(uid: Int): ActorPath = this
 
   override lazy val toString = address.toString
 }
@@ -165,7 +180,6 @@ trait ActorRef extends Equals {
 private[actor] trait LocalActorRef extends ActorRef { self =>
   private[actor] var _cell: Cell
   private[actor] def system: ActorSystem
-  private[actor] def uid: Int
 
   private[actor] def cell: Cell = _cell
 
@@ -192,8 +206,12 @@ private[actor] trait LocalActorRef extends ActorRef { self =>
   private[actor] def stop(): Unit =
     if(cell != null) cell.stop()
 
-  final override lazy val toString = s"$path#${uid}"
+  final override lazy val toString = s"$path"
 }
+
+case class DeathPactException(ref: ActorRef) extends Exception("Death pact exception with " + ref) with NoStackTrace
+case class ActorKilledException(msg: String) extends Exception("actor killed: " + msg) with NoStackTrace
+case class ActorInitializationException(self: ActorRef, msg: String, cause: Throwable) extends Exception("Actor initialization error in " + self, cause)
 
 object URIEncoding {
   def encode(str: String): String = {

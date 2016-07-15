@@ -59,7 +59,10 @@ trait Cell extends ActorContext { thisCell =>
       _sender = Some(s)
       _msg = msg
 
-      internalReceive(msg)
+      try internalReceive(msg) catch {
+        case NonFatal(t) =>
+          tryRestart(t, Some(msg))
+      }
 
       i += 1
     } finally {
@@ -117,13 +120,29 @@ trait Cell extends ActorContext { thisCell =>
     realWatching -= watchee
   }
 
+  def tryRestart(cause: Throwable, msg: Option[Any]) = if(_isRunning) {
+    _isRunning = false
+
+    actor.aroundPreRestart(cause, msg)
+
+    system.log.error(cause, s"$self threw error, trying restart")
+
+    //TODO: check supervisor policy here!!
+
+    receiveStack = Nil
+
+    init(Some(cause))
+
+    actor.aroundPostRestart(cause)
+  }
+
   def stop() = if(_isRunning) {
     _isRunning = false
 
     trap(watching.foreach(unwatch))
     trap(system.remActor(self))
     trap(tellTerminated())
-    trap(actor.stop())
+    trap(actor.aroundPostStop())
     children.foreach(x => trap(x.stop()))
 
     self._cell = null
@@ -132,8 +151,8 @@ trait Cell extends ActorContext { thisCell =>
   def stop(other: ActorRef): Unit = system stop other
 
   def become(receive: Actor.Receive, discardOld: Boolean = true): Unit = {
-    if(discardOld && receiveStack.nonEmpty)
-      receiveStack = receive +: receiveStack.tail
+    if(discardOld/* && receiveStack.nonEmpty*/)
+      receiveStack = receive +: Nil//receiveStack.tail
     else
       receiveStack = receive +: receiveStack
   }
@@ -145,13 +164,14 @@ trait Cell extends ActorContext { thisCell =>
   def actorOf(props: Props, name: String = ""): ActorRef = {
     val child = new LocalActorRef {
       val id = if(name == "") ActorSystem.newId else name
-      val path = thisCell.self.path / id
       val system = thisCell.system
 
       private[actor] var _cell: Cell =
         new thisCell.system.SystemCell(this, props, Some(thisCell.self))
 
-      private[actor] val uid: Int = _cell.uid
+      val path = (thisCell.self.path / id).withUid(_cell.uid)
+
+      val uid: Int = _cell.uid
     }
 
     if(system hasActor child)
@@ -181,12 +201,13 @@ trait Cell extends ActorContext { thisCell =>
       trap(stop())
   }
 
-  private[actor] def init(): Unit = {
+  private[actor] def init(restart: Option[Throwable] = None): Unit = {
     import akka.actor.Actor._
 
     require(!_isRunning, "already running!")
 
-    system.addActor(self)
+    if(!restart.isDefined)
+      system.addActor(self)
 
     _isRunning = true
 
@@ -206,7 +227,12 @@ trait Cell extends ActorContext { thisCell =>
     require(_activeCell == None, "ActiveCell state issue - c")
     require(actor != null, "failed to set actor inst")
 
-    runSafe(actor.start())
+    restart match {
+      case Some(t) =>
+        runSafe(actor.aroundPostRestart(t))
+      case None =>
+        runSafe(actor.aroundPreStart())
+    }
 
     system.log.debug("Created new actor " + self)
   }

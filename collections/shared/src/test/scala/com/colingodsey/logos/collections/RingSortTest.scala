@@ -38,9 +38,7 @@ object RingSortTest extends TestSuite {
 
       f(curMulti)
 
-      val stopTime = Deadline.now
-
-      val diff = stopTime - startTime
+      val diff = -startTime.timeLeft
 
       if(diff >= minTime) return diff / curMulti
 
@@ -111,12 +109,13 @@ object RingSortTest extends TestSuite {
       assert(ringTop == sortTop)
     }
 
+    //this doesnt work on js somehow
     "speed test 200" - {
       val nTrials = 10
       val maxLength = 50000
       val take = 1000
 
-      val sortTime = runUntilTakesTime(2.seconds) { mult =>
+      val sortTime = runUntilTakesTime(1.seconds) { mult =>
         runTrials(nTrials * mult, maxLength) { numbersItr =>
           val numbers = numbersItr.toArray
 
@@ -124,7 +123,7 @@ object RingSortTest extends TestSuite {
         }
       }
 
-      val ringTime = runUntilTakesTime(2.seconds) { mult =>
+      val ringTime = runUntilTakesTime(1.seconds) { mult =>
         runTrials(nTrials * mult, maxLength) { numbersItr =>
           val numbers = numbersItr.toArray
 

@@ -63,6 +63,7 @@ object Logos {
   def commonSettings = Seq(
     //temp resolver for utest on 2.12.0-M3
     resolvers += "mvn repo" at "https://raw.githubusercontent.com/colinrgodsey/maven/master",
+    resolvers += "mmreleases" at "https://artifactory.mediamath.com/artifactory/libs-release-global",
     libraryDependencies += "com.lihaoyi" %%% "utest" % "0.3.1" % "test",
     testFrameworks += new TestFramework("utest.runner.Framework")
   ) ++ macroDeps
@@ -82,7 +83,7 @@ object Logos {
   def macroSettings = Seq(name := "logos-macros") ++ macroDeps
 
   def akkaSettings = Seq(
-    libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.3.9"
+    libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.3.15"
   )
 
   def claServerSettings = akkaSettings ++ Seq(
@@ -91,7 +92,7 @@ object Logos {
   )
 
   def scalaJSONSettings = Seq(
-    libraryDependencies += "com.mediamath" %%% "scala-json" % "1.0-SNAPSHOT"
+    libraryDependencies += "com.mediamath" %%% "scala-json" % "1.0"
   )
 
   def domSettings = Seq(

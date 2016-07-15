@@ -4,8 +4,9 @@ import java.net.URI
 import java.util.logging.Level
 
 import akka.actor.internal.{Cell, SystemScheduler}
-import akka.actor.pattern.AskTimeoutException
 import akka.event.LoggingAdapter
+import akka.pattern.AskTimeoutException
+import akka.util.Timeout
 
 import scala.concurrent.{Future, Promise, ExecutionContext}
 import scala.scalajs.js
@@ -107,7 +108,7 @@ trait ActorSystem { thisSystem =>
     def deadRef = newDeadRef(path, uid)
 
     actors get path match {
-      case Some(x) if x.uid == uid => x
+      case Some(x) if x.path.uid == uid => x
       case None => deadRef
     }
   } catch {
@@ -120,17 +121,17 @@ trait ActorSystem { thisSystem =>
     val path: ActorPath = _path
 
     private[actor] var _cell: Cell = null
-    private[actor] val uid: Int = _uid
+    val uid: Int = _uid
     private[actor] val system: ActorSystem = thisSystem
   }
 
   def actorOf(props: Props, name: String = ""): ActorRef = new LocalActorRef { ref =>
     val id = if(name == "") ActorSystem.newId else name
-    val path = userPath / id
     val system = thisSystem
 
     private[actor] var _cell: Cell = new SystemCell(this, props)
-    private[actor] val uid: Int = _cell.uid
+
+    val path = (userPath / id).withUid(_cell.uid)
 
     if(actors contains path)
       sys.error(s"Actor $ref already exists!")
@@ -156,7 +157,6 @@ trait ActorSystem { thisSystem =>
     val name = "temp" + ActorSystem.newId
     val path = rootPath / name
     val system = thisSystem
-    val uid = ActorSystem.newIntId
 
     private val promise = Promise[Any]
 
@@ -187,7 +187,6 @@ trait ActorSystem { thisSystem =>
   lazy val deadLetters: ActorRef = new LocalActorRef { _deadLetters =>
     val path = rootPath / "dead-letters"
     val system = thisSystem
-    val uid = 0
 
     private[actor] var _cell: Cell = new Cell {
       val self = _deadLetters
@@ -215,7 +214,7 @@ class TempActor private[actor](msg: Any, dest: ActorRef,
   import context.dispatcher
   val TimeIsUp = math.random
 
-  val timer = context.system.scheduler.scheduleOnce(to.dur, self, TimeIsUp)
+  val timer = context.system.scheduler.scheduleOnce(to.duration, self, TimeIsUp)
 
   def isTargetTerminated = dest match {
     case x: LocalActorRef => x.isTerminated

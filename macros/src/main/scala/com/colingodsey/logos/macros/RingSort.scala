@@ -1,10 +1,6 @@
 package com.colingodsey.logos.macros
 
-import scala.annotation.{StaticAnnotation, tailrec}
-
 import language.experimental.macros
-//import scala.reflect.NameTransformer.encode
-
 
 /** Dummy object to get the right shadowing for 2.10 / 2.11 cross compilation */
 private object Compat210 {

@@ -43,10 +43,10 @@ object ErfTest extends TestSuite {
       var actual: Double = ExtraMath.erf(x)
       var expected: Double = 0.95
 
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
       actual = ExtraMath.erf(-x)
       expected = -expected
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
     }
 
     "testErf2576" - {
@@ -54,10 +54,10 @@ object ErfTest extends TestSuite {
       var actual: Double = ExtraMath.erf(x)
       var expected: Double = 0.99
 
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
       actual = ExtraMath.erf(-x)
       expected = -expected
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
     }
 
     "testErf2807" - {
@@ -65,10 +65,10 @@ object ErfTest extends TestSuite {
       var actual: Double = ExtraMath.erf(x)
       var expected: Double = 0.995
 
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
       actual = ExtraMath.erf(-x)
       expected = -expected
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
     }
 
     "testErf3291" - {
@@ -76,10 +76,10 @@ object ErfTest extends TestSuite {
       var actual: Double = ExtraMath.erf(x)
       var expected: Double = 0.999
 
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
       actual = ExtraMath.erf(-x)
       expected = -expected
-      assertEquals(expected, actual, 1.0e-5)
+      assertEquals(expected, actual, ExtraMath.MajorTolerance)
     }
 
     /**
@@ -123,39 +123,38 @@ object ErfTest extends TestSuite {
     }
 
     "normalCDF - 1 sdev" - {
-      val probability1sdev = 0.682
       val range = 100
 
-      val res = for(i <- -range to range) yield {
-        val i2 = if(i < 0) i - 1
-        else if(i > 0) i + 1
-        else i
-
-        ExtraMath.normalCDF(i.toDouble, i2.toDouble, 0, range)
+      val res = for(i <- 0 until range) yield {
+        ExtraMath.normalCDF(i, 1, 0, range) * 2
       }
 
-      val sum = res.sum
+      //~= 1 standard deviation
+      assertEquals(res.sum, ExtraMath.FirstSDev, ExtraMath.MajorTolerance)
+    }
+
+    //same thing as above, but do it in the negative domain
+    "normalCDF - -1 sdev" - {
+      val range = 100
+
+      val res = for(i <- 0 until range) yield {
+        ExtraMath.normalCDF(-i, -1, 0, range) * 2
+      }
 
       //~= 1 standard deviation
-      assertEquals(sum, probability1sdev, 0.01)
+      assertEquals(res.sum, ExtraMath.FirstSDev, ExtraMath.MajorTolerance)
     }
 
     "normalCDF - all samples" - {
       val probabilityFullRange = 1.0
       val range = 2000
 
-      val res = for(i <- -range to range) yield {
-        val i2 = if(i < 0) i - 1
-        else if(i > 0) i + 1
-        else i
-
-        ExtraMath.normalCDF(i.toDouble, i2.toDouble, 0, 100)
+      val res = for(i <- 0 to range) yield {
+        ExtraMath.normalCDF(i, 1, 0, 100) * 2
       }
 
-      val sum = res.sum
-
       //~= 1 standard deviation
-      assertEquals(sum, probabilityFullRange, 0.01)
+      assertEquals(res.sum, probabilityFullRange, ExtraMath.MajorTolerance)
     }
   }
 

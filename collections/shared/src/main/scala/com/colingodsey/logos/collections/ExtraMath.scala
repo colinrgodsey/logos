@@ -7,6 +7,8 @@ object ExtraMath {
   final val TwoPi = math.Pi * 2
   final val SqrtTwoPi = math.sqrt(TwoPi)
   final val SqrtTwo = math.sqrt(2.0)
+  final val FirstSDev = 0.682689492137086
+  final val MajorTolerance = 1e-05
 
   def randomNormal: Double = randomNormal(1)
 
@@ -47,9 +49,9 @@ object ExtraMath {
   }
 
   //cdf for a range x1 - x2
-  def normalCDF(x1: Double, x2: Double, µ: Double, σ: Double): Double = {
-    val r1 = normalCDF(x1, µ, σ)
-    val r2 = normalCDF(x2, µ, σ)
+  def normalCDF(x: Double, dx: Double, µ: Double, σ: Double): Double = {
+    val r1 = normalCDF(x, µ, σ)
+    val r2 = normalCDF(x + dx, µ, σ)
 
     math.abs(r1 - r2)
   }

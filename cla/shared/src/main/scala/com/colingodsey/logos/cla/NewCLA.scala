@@ -1,6 +1,6 @@
 package com.colingodsey.logos.cla
 
-import com.colingodsey.logos.collections.RingSort
+import com.colingodsey.logos.collections.{ExtraMath, RingSort}
 
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
@@ -65,9 +65,6 @@ trait LayerState {
   }
 }
 
-
-sealed trait ImmutableRegionState extends LayerState
-
 /*
 
 activation map, bytes, ticked down 3,2,1,0 etc.
@@ -118,113 +115,187 @@ DDDDDDDDDDDDDD
 input space is mapped to the cell space of another layer, or somewhere in the 'D' regional input space
  */
 
-class SomeTestRegion { region =>
-  val regionWidth = 128
-  val globalInputLength = 100
-  val boostDivisor: Int = ???
-  val permanenceDecr: Int = ???
-  val permanenceIncr: Int = ???
-  val desiredLocalActivity: Int = ???
-  val connectionThreshold: Int = ???
-  val activationThreshold: Int = ???
 
-  //these 2 states are entirely mutable and never re-allocated
-  val currentState: RegionState = ???
-  val lastState: RegionState = ???
 
-  trait SharedState {
-    def setPrediction(nodeIdx: Int, value: Boolean): Unit = currentState.prediction(nodeIdx: Int) = value
+/*
+random thought on recursive architecture -
 
-    /**
-     * Prediction is always written to current state, read from previous state.
-     * This selects the 'learning' cells out of any activation range. This range
-     * is copied after the frame and used for learning cell reference in the next frame.
-     * It is then cleared for the new frame.
-     **/
-    private[cla] def getPrediction(nodeIdx: Int): Boolean = lastState.prediction(nodeIdx)
+Considering the often recursive nature of biology-
+ * Each cell (in relation to its distal dendrites) could be considered a
+   layer with a desired activity of 1. Columns ~== distal dendrites.
+ * Each cell in a column could be considered a column in a layer (with added 'bursting mechanic', maybe akin to boosting).
+ * Each dendrite could be considered a layer with only 1 column, or just a column.
+ * Layer with 1 column ~== column
 
-    private[cla] val activation: Array[Byte] = currentState.activation
+ */
+
+trait LayerColumnTemporalPooler extends SynapseReinforcement {
+  val config: MutableLayerState.Config
+  import config._
+
+  def layerState: MutableLayerState
+
+  def regionWidth: Int
+  def maxDistal: Int
+  def cellDepth: Int
+  def learningCellTickDuration: Byte
+  def connectionThreshold: Int
+  def activationThreshold: Int
+
+  def getLastActivation(nodeIdx: Int): Boolean
+
+  //resolves the cell indexes 'above' the column node idx
+  def getCellIdx(columnIdx: Int, cellDepthIndex: Int): Int =
+    columnIdx - (cellDepthIndex + 1) * regionWidth
+
+  def onColumnActivate(columnIdx: Int): Unit = {
+    selectAndReinforceLearningCell(columnIdx)
   }
 
-  val Layer1 = new MutableLayerState(
-    regionWidth = regionWidth,
-    cellDepth = 8,
-    maxConnections = 16,
-    maxDistal = 16
-  ) with SharedState with LocalRegionalLayer {
-    val overlapBuffer = new Array[Short](regionWidth)
-    val ordinalBuffer = new Array[Byte](regionWidth)
+  //TODO: any way to de-dupe this?
+  def getDistalSegmentOverlap(nodeIdx: Int, segmentIdx: Int): Int = {
+    var numActive = 0
+    var hashAcc = 0x1071E //some seed
 
-    val sharedIndexOffset = 0
+    for(connectionIdx <- 0 until maxConnections) {
+      val inputIdx = layerState.getConnectionTargetIdx(nodeIdx, segmentIdx, connectionIdx)
+      val inputPerm = layerState.getConnectionTargetPermanence(nodeIdx, segmentIdx, connectionIdx)
 
-    def inputActivationIndex: Int = globalInputIndex
-    def inputLength: Int = globalInputLength
-  }
-
-  val Layer2 = new MutableLayerState(
-    regionWidth = regionWidth,
-    cellDepth = 8,
-    maxConnections = 16,
-    maxDistal = 16
-  ) with SharedState with LocalRegionalLayer {
-    val overlapBuffer = new Array[Short](regionWidth)
-    val ordinalBuffer = new Array[Byte](regionWidth)
-
-    val sharedIndexOffset = Layer1.maxIdx
-
-    def inputActivationIndex: Int = Layer1.sharedIndexOffset
-    def inputLength: Int = Layer1.numCells
-  }
-
-  val totalActivationLength = Layer2.maxIdx
-  val globalInputIndex = totalActivationLength
-  val totalNodeLength = globalInputIndex + globalInputLength
-
-  /**
-   * Copy current state to 'last state' and decrement activations in current state
-   */
-  def swapState(): Unit = {
-    for(idx <- 0 until currentState.activation.length) {
-      val curActivation = currentState.activation(idx)
-
-      lastState.activation(idx) = curActivation
-
-      if(curActivation > 0) currentState.activation(idx) = (curActivation - 1).toByte
-
-      lastState.prediction(idx) = currentState.prediction(idx)
-
-      currentState.prediction(idx) = false
+      //reference last activate state here
+      if(inputIdx != 0 &&
+          inputPerm >= connectionThreshold &&
+          getLastActivation(inputIdx)) {
+        //take hash of inputs and eventually columnIdx for ordinal
+        hashAcc = MurmurHash3.mix(hashAcc, inputIdx)
+        numActive += 1
+      }
     }
+
+    //TODO: FIX! if no active synapses, hash ordinal is constant and not based on input
+
+    //the important part- mix our node id in
+    hashAcc = MurmurHash3.mixLast(hashAcc, nodeIdx)
+    //and segment id
+    hashAcc = MurmurHash3.mixLast(hashAcc, segmentIdx)
+
+    val ordinal = MurmurHash3.finalizeHash(hashAcc, numActive + 2) & 0xFF
+
+    if(numActive >= activationThreshold) {
+      //ordinal used as tie break. deterministic based on (activeInputIds, columnId).hashCode
+      (numActive << 8) | ordinal
+    } else ordinal
   }
 
-  class RegionState {
-    val activation = new Array[Byte](totalActivationLength)
-    val prediction = new Array[Boolean](totalActivationLength)
-  }
-  
-  trait LocalRegionalLayer extends LayerSpatialPooler with LayerColumnUpdate { _: MutableLayerState =>
-    def layerState: MutableLayerState = this
+  /*
+  Called when a segment is selected for learning on a non-predictive 'bursting' scenario.
+  Destroys connection data and seeds from 'prediction' map of learning cells
+   */
+  def seedDistalSynapse(cellIdx: Int, segmentIdx: Int): Unit = ???
 
-    def regionWidth: Int = region.regionWidth
-    def boostDivisor: Int = region.boostDivisor
-    def permanenceDecr: Int = region.permanenceDecr
-    def permanenceIncr: Int = region.permanenceIncr
-    def desiredLocalActivity: Int = region.desiredLocalActivity
+  /*
+  Select the best predicted learning cell and reinforce its distal dendrite.
+  This is essentially the temporal pooling operation. Selects learning cell, reinforces
+  distal synapses, activates cells, sets learning cell on prediction map
+   */
+  def selectAndReinforceLearningCell(columnIdx: Int): Unit = {
+    var maxCellIdx = 0
+    var maxSegmentIdx = 0
+    var maxOverlap = 0
 
-    def connectionThreshold: Int = region.connectionThreshold
-    def activationThreshold: Int = region.activationThreshold
+    //select learning cell and distal segment
+    for {
+      cellDepthIndex <- 0 until cellDepth
+      segmentIdx <- 0 until maxDistal
+    } {
+      val cellIdx = getCellIdx(columnIdx, cellDepthIndex)
+      val overlap = getDistalSegmentOverlap(cellIdx, segmentIdx)
 
-    //incorporates radius, topology, etc
-    def getInhibitionNeighborLocalIdx(localColumnIdx: Int): Iterator[Int] = ???
+      if(overlap > maxOverlap) {
+        maxCellIdx = cellIdx
+        maxSegmentIdx = segmentIdx
+        maxOverlap = overlap
+      }
+    }
+
+    //if our overlap is larger than the ordinal range, a segment 'fired'
+    val wasPredicted = maxOverlap > 0xFF
+
+    //reset cell activation to 0 for predicted, 1 for bursting
+    for(cellDepthIndex <- 0 until cellDepth) {
+      val cellIdx = getCellIdx(columnIdx, cellDepthIndex)
+
+      if(wasPredicted)
+        layerState.setActivation(cellIdx, 0)
+      else //bursting
+        layerState.setActivation(cellIdx, 1)
+    }
+
+    //set as learning cell for next frame prediction
+    layerState.setPrediction(maxCellIdx, true)
+
+    //set learning cell activation
+    if(wasPredicted) {
+      reinforce(maxCellIdx, maxSegmentIdx) //reinforce existing learning segment
+      //TODO: maybe add synapse?
+      layerState.setActivation(maxCellIdx, learningCellTickDuration)
+    } else { //bursting, cell/distal selected for leaning
+
+    }
   }
 }
 
-trait LayerColumnUpdate {
-  def layerState: MutableLayerState
-  //def previousState: LayerState
+/*
+thoughts on boost:
 
-  def connectionThreshold: Int
-  def activationThreshold: Int
+2 types of boost:
+
+Column could activate via FF input but is inhibited---
+* accumulated 'boost' to overlap score
+* lets less-overlapping columns fire at a lower frequency/chance than better matching ones
+  * useful noise? almost preparing 'backup' columns
+  * doesnt pollute local activation that much as it resets the first time its not inhibited
+
+Column does not activate enough via FF input---
+* boost synapse strength until something meaningful happens
+* creates fully-connected proximal connections for unused/inactive sections of input....
+  * natural 'seeding' of synaptic process
+  * should proximal start fully connected?
+  * could destroy meaningful synaptic data
+* could happen after a tick-domain 'TTL' or as part of GC?
+  * could start to increase after so many ticks of inactivity
+  * could happen in response to 'stress' or other global modulation
+    * stress could globally modulate the rate at which inactive cells 'GC'
+    * this could be a natural way to manage 'memory capacity'. stressful
+      situations could be a call for 'more capacity' and maybe a way instinctual drive
+      calls for higher-level processing. columns wouldnt normally 'arbitrarily' compete (synaptically)
+      unless there was a global indicator signaling distress. this would solidify important
+      and often used columns while leaving others up to experimentation and competition.
+    * would have to be weighted on some combination of 'total synaptic weight' and activity,
+      this would preserve more of the very solid connections formed.
+    * could stress be caused by column 'bursting' ?
+
+distal synapse selection:
+  * rate at which new synapses are added to a distal dendrite?
+  *
+duty cycle:
+  * capture/reset frame counters
+ */
+
+object LayerSpatialPooler {
+  trait Config extends MutableLayerState.Config {
+    def boostDivisor: Int = 0xFF //frames per activation point, limit max 1 point for 0xFFFF, max FF points for 0xFF, recommend FF
+    def connectionThreshold: Int
+    def activationThreshold: Int
+    def desiredLocalActivity: Int
+    def inputStdDevInputPercent: Double// = 0.8 //percent of input range thats 68.2% input to column
+    def stdDev: Double// = layerState.inputLength * inputStdDevInputPercent / 2.0
+  }
+}
+
+//TODO: both types of boost
+trait LayerSpatialPooler extends SynapseReinforcement {
+  val config: LayerSpatialPooler.Config
+  import config._
 
   /*
   contains 24-bit overlap (O) and 8-bit ordinal (T) data
@@ -238,92 +309,108 @@ trait LayerColumnUpdate {
    */
   val ordinalBuffer: Array[Byte]
 
-  /*
-  thoughts on ordinal:
-    * integer overlap is hard to compare
-    * using spatial pooling cant actually control the amount of activity
-    * local activity actually gets higher when columns have similar activity
-    * any reasonably varied fractional difference at all could help, something deterministic but based on input.
-      * one good option- (Seq(activeInputIndex...), columnIdx).hashCode. this creates a 'natural leader' for a specific set of input
-    * you can use any deterministic method: traversable order, static ordinal, hashcode. end result
-      is that for any one set of inputs, any columns activated by it with equal overlap will have
-      the same winner every time.
-    * you can make it random, but makes learning very noisy
-    * can use permanence value in overlap sum- against CLA, could result in overfitting
-  */
-  def update(): Unit = {
-    for(columnIdx0 <- 0 until layerState.regionWidth) {
-      val columnIdx = columnIdx0 + layerState.sharedIndexOffset
-      var numActive = 0
-      var hashAcc = 0x1231A //some seed
+  /* stores boost values for column. should this also start out random to prevent events? */
+  val boostBuffer: Array[Short]
 
-      for(connectionIdx <- 0 until layerState.maxConnections) {
-        val inputIdx = layerState.getConnectionTargetIdx(columnIdx, 0, connectionIdx)
-        val inputPerm = layerState.getConnectionTargetPermanence(columnIdx, 0, connectionIdx)
+  //needs to start out random so we dont have regional strengthening events/bursts!!
+  val dutyCycle: Array[Short]
 
-        if(inputIdx != 0 &&
-            inputPerm >= connectionThreshold &&
-            layerState.getActivation(inputIdx)) {
-          //take hash of inputs and eventually columnIdx for ordinal
-          hashAcc = MurmurHash3.mix(hashAcc, inputIdx)
-          numActive += 1
-        }
-      }
-
-      if(numActive >= activationThreshold) {
-        //the important part- mix our column id in
-        hashAcc = MurmurHash3.mixLast(hashAcc, columnIdx)
-
-        val ordinal = MurmurHash3.finalizeHash(hashAcc, numActive + 1)
-
-        //ordinal used as tie break. deterministic based on (activeInputIds, columnId).hashCode
-        overlapBuffer(columnIdx0) = (numActive << 8) | (ordinal & 0xFF)
-      }
-
-      //need to explicitly unset, deactivations normally handled by countdown timer for cells
-      layerState.setActivation(columnIdx, 0)
-    }
-  }
-}
-
-//TODO: both types of boost
-trait LayerSpatialPooler {
   def layerState: MutableLayerState
-
-  def boostDivisor: Int //these are integer overlaps, integer divisor
-
-  def desiredLocalActivity: Int
-  def permanenceIncr: Int
-  def permanenceDecr: Int
 
   //incorporates radius, topology, etc
   def getInhibitionNeighborLocalIdx(localColumnIdx: Int): Iterator[Int] //TODO: interator
 
-  val overlapBuffer: Array[Short]
-  val ordinalBuffer: Array[Byte]
+  def onColumnActivate(columnIdx: Int): Unit
 
-  //calculate average receptive field size here too
-  def reinforce(columnIdx: Int): Unit = {
-    for(connectionIdx <- 0 until layerState.maxConnections) {
-      val inputIdx = layerState.getConnectionTargetIdx(columnIdx, 0, connectionIdx)
-      val inputPerm = layerState.getConnectionTargetPermanence(columnIdx, 0, connectionIdx)
+  //location here is from [0 to 1) for entire column range in layer
+  def selectProximalInputs(columnIdx0: Int, inputIndices: IndexedSeq[Int]): Iterable[Int] = {
+    val columnLocation: Double = columnIdx0 / regionWidth
 
-      if(inputIdx != 0) {
-        val isActive = layerState.getActivation(inputIdx)
+    val middleInputIdx = (columnLocation * inputIndices.length).toInt
 
-        if(isActive)
-          layerState.addConnectionTargetPermanence(columnIdx, 0, connectionIdx, permanenceIncr)
-        else
-          layerState.addConnectionTargetPermanence(columnIdx, 0, connectionIdx, permanenceDecr)
-      }
+    def normalize(idx: Int): Int = {
+      val maxIdx = inputIndices.length
+      var x = idx
+
+      while(x < 0) x += maxIdx
+      while(x >= maxIdx) x -= maxIdx
+
+      x
     }
+
+    def nextDouble = math.random
+
+    //intentionally let this wrap for 2x coverage!
+    //could produce 2x as many samples as input length
+    val itr = (0 until inputIndices.length).iterator flatMap { dx =>
+      //probability for the domain of [x, x + dx]
+      val probability = ExtraMath.normalCDF(dx, 1, 0, stdDev)
+
+      val idxLeft = normalize(middleInputIdx - dx)
+      val idxRight = normalize(middleInputIdx + dx)
+
+      //take a sample for left/right dx with given probability
+      val selectLeft = nextDouble < probability
+      val selectRight = nextDouble < probability
+
+      val left = if(selectLeft) List(idxLeft) else Nil
+      val right = if(selectRight) List(idxRight) else Nil
+
+      left ++ right
+    }
+
+    itr.toStream.distinct take maxConnections
   }
 
-  def update(): Unit = {
+  def seedColumnProximal(columnIdx: Int, inputIndices: IndexedSeq[Int]): Unit = {
+    val loc = columnIdx
+
+    layerState
+  }
+
+  /*
+  thoughts on duty cycle 'synaptic strengthening'
+
+  columns that never activate either:
+    * started out fully connected to something.
+    * connect to unused inputs via synapse/potential synapse
+    * weights optimized to input pattern that has not been seen again
+    * could ALWAYS potentially activate for some input (connected synapses always >= activation threshold)
+    *
+    * column states:
+    * primed - fully connected
+    * specialized - some unused synapses disconnect, and become potential
+    * stale - specialized state that has become unused
+    *
+    * Every proximal pattern starts primed and has the potential to go stale.
+    * No way to determine if a stale column is more important than a specialized one.
+    * Must GC based on usage... but must be done sparingly as we could destroy specialized data.
+    *
+    * Doesnt necessarily destroy data like i said before!! It just de-specializes them slightly and
+    * lets other patterns potentially fire and re-specialize them.
+    *
+    * **** Should we just consider FF specialization potentially 'weak' ?
+    *
+    * Track duty cycle for a number of frames, boost synapses on some small percentage.
+    * Number of frames for sample - sample period
+    *
+    * Number of frames in sample period must be <= max prim value use for tracking
+    * Strengthening threshold- if column is in lower % activity, strengthen.
+    *
+    * Counters - track nonDutyCycle - 1 count per frame of inactivity. after X frames
+   */
+
+  def columnarInhibition(): Unit = {
     //all columns with a non-0 overlap
-    for(columnIdx0 <- 0 until layerState.regionWidth; if overlapBuffer(columnIdx0) > 0) {
-      val columnIdx = columnIdx0 + layerState.sharedIndexOffset
+    for(columnIdx0 <- 0 until regionWidth; if overlapBuffer(columnIdx0) > 0) {
+      val columnIdx = columnIdx0 + layerState.columnIndexOffset
       val overlap = overlapBuffer(columnIdx0)
+
+      val oldDutyCycle = dutyCycle(columnIdx0)
+      val newDutyCycle = (oldDutyCycle + 1).toShort
+
+      if(newDutyCycle > oldDutyCycle) //check overflow
+        dutyCycle(columnIdx0) = newDutyCycle
 
       val neighbors = getInhibitionNeighborLocalIdx(columnIdx0).map { idx =>
         val overlap = overlapBuffer(idx)
@@ -343,24 +430,121 @@ trait LayerSpatialPooler {
       if(top.last <= overlap) { //activate
         layerState.setActivation(columnIdx, 1)
 
-        reinforce(columnIdx)
+        reinforce(columnIdx, 0)
+        boostBuffer(columnIdx0) = 0 //clear boost points
+        onColumnActivate(columnIdx)
+      } else {
+        //add boost point for 1 'inhibited frame'
+        val oldValue = boostBuffer(columnIdx0)
+        val newBoost = (oldValue + 1).toShort
+
+        //make sure we didnt int overflow here
+        if(newBoost > oldValue)
+          boostBuffer(columnIdx0) = newBoost
+      }
+    }
+  }
+
+  /*
+  thoughts on ordinal:
+    * THE WINNER IS!-- deterministic (setOfActiveConnectedNodeIdx, columnIdx/distalIdx).hashCode
+    *
+    * deterministic leader for every distinct set of input activations
+    *
+    * biological justification- naturally slow/never changing differences in inhibitory
+    * connection strength (meshed interconnected inhibitory)?
+    *   * some columns naturally win over OTHER COLUMNS...
+    *   * does this make sense with the ordinal? maybe hash of (thisColumn, thatColumn).## is fine for sort ordinal?
+    *   * TODO: figure out if these equate, and/or what the difference is. roughly both select a leader for a distinct set of spatial activation
+    *
+    *
+    * Old ideas:
+    *
+    * integer overlap is hard to compare
+    * using spatial pooling cant actually control the amount of activity
+    * local activity actually gets higher when columns have similar activity
+    * any reasonably varied fractional difference at all could help, something deterministic but based on input.
+      * one good option- (Seq(activeInputIndex...), columnIdx).hashCode. this creates a 'natural leader' for a specific set of input
+    * you can use any deterministic method: traversable order, static ordinal, hashcode. end result
+      is that for any one set of inputs, any columns activated by it with equal overlap will have
+      the same winner every time.
+    * you can make it random, but makes learning very noisy
+    * can use permanence value in overlap sum- against CLA, could result in overfitting
+  */
+  def calculateColumnOverlap(): Unit = {
+    for(columnIdx0 <- 0 until regionWidth) {
+      val columnIdx = columnIdx0 + layerState.columnIndexOffset
+      var numActive = 0
+      var hashAcc = 0x1231A //some seed
+
+      for(connectionIdx <- 0 until maxConnections) {
+        val inputIdx = layerState.getConnectionTargetIdx(columnIdx, 0, connectionIdx)
+        val inputPerm = layerState.getConnectionTargetPermanence(columnIdx, 0, connectionIdx)
+
+        if(inputIdx != 0 &&
+            inputPerm >= connectionThreshold &&
+            layerState.getActivation(inputIdx)) {
+          //take hash of inputs and eventually columnIdx for ordinal
+          hashAcc = MurmurHash3.mix(hashAcc, inputIdx)
+          numActive += 1
+        }
+      }
+
+      if(numActive >= activationThreshold) {
+        //the important part- mix our column id in
+        hashAcc = MurmurHash3.mixLast(hashAcc, columnIdx)
+
+        val ordinal = MurmurHash3.finalizeHash(hashAcc, numActive + 1)
+        val boostPoints = boostBuffer(columnIdx0) / boostDivisor
+
+        //ordinal used as tie break. deterministic based on (activeInputIds, columnId).hashCode
+        overlapBuffer(columnIdx0) = (numActive << 8) | (ordinal & 0xFF) + boostPoints
+      }
+
+      //need to explicitly unset, deactivations normally handled by countdown timer for cells
+      layerState.setActivation(columnIdx, 0)
+    }
+  }
+}
+
+//TODO: should this be moved into MutableLayerState?
+trait SynapseReinforcement {
+  val config: MutableLayerState.Config
+  import config._
+
+  def layerState: MutableLayerState
+  def permanenceIncr: Int
+  def permanenceDecr: Int
+
+  //calculate average receptive field size here too
+  def reinforce(nodeIdx: Int, segmentIdx: Int): Unit = {
+    for(connectionIdx <- 0 until maxConnections) {
+      val inputIdx = layerState.getConnectionTargetIdx(nodeIdx, segmentIdx, connectionIdx)
+      val inputPerm = layerState.getConnectionTargetPermanence(nodeIdx, segmentIdx, connectionIdx)
+
+      if(inputIdx != 0) {
+        val isActive = layerState.getActivation(inputIdx)
+
+        if(isActive)
+          layerState.addConnectionTargetPermanence(nodeIdx, segmentIdx, connectionIdx, permanenceIncr)
+        else
+          layerState.addConnectionTargetPermanence(nodeIdx, segmentIdx, connectionIdx, permanenceDecr)
       }
     }
   }
 }
 
-abstract class MutableLayerState(
-  val regionWidth: Int,
-  val cellDepth: Int,
-  val maxConnections: Int,
-  val maxDistal: Int
-) extends LayerState { self =>
-  def inputActivationIndex: Int //offset in activation data where we get input
-  def inputLength: Int //length of that data from offset
-  def sharedIndexOffset: Int //where cell activations start followed by column activations
+object MutableLayerState {
+  trait Config {
+    def regionWidth: Int
+    def cellDepth: Int
+    def maxConnections: Int
+    def maxDistal: Int
+  }
+}
 
-  def setPrediction(nodeIdx: Int, value: Boolean): Unit
-  
+case class LayerSpaceConfiguration(regionWidth: Int,
+    cellDepth: Int, maxConnections: Int, maxDistal: Int) extends MutableLayerState.Config {
   val numCells = regionWidth * cellDepth
   val numColumns = regionWidth
 
@@ -368,11 +552,33 @@ abstract class MutableLayerState(
   val segmentConnectionSize = maxConnections * 2
   val cellConnectionSize = maxDistal * segmentConnectionSize
   val inputConnectionOffset = numCells * cellConnectionSize
+  val connectionIntSize = (numCells * maxDistal + numColumns) * maxConnections * 2
+}
+
+case class LayerAllocationConfiguration(
+    spaceConfig: LayerSpaceConfiguration, sharedIndexOffset: Int) {
+  import spaceConfig._
+
+  val maxIdx = sharedIndexOffset + numCells + numColumns
+  val columnIndexOffset = sharedIndexOffset + numCells
+}
+
+abstract class MutableLayerState(config: LayerSpaceConfiguration) extends LayerState { self =>
+  import config._
+
+  def inputActivationIndex: Int //offset in activation data where we get input
+  //NOTE: recommended input length should be ~ the number of cells (overall SDR params will match w distal and proximal)
+  def inputLength: Int //length of that data from offset
+  def sharedIndexOffset: Int //where cell activations start followed by column activations
+
+  def setPrediction(nodeIdx: Int, value: Boolean): Unit
+
 
   //this can always be local to the layer
-  val connection = new Array[Int]((numCells * maxDistal + numColumns) * maxConnections * 2) //(ID: Int, permanence: Int)
+  val connection = new Array[Int](connectionIntSize) //(ID: Int, permanence: Int)
 
   def maxIdx = sharedIndexOffset + numCells + numColumns
+  def columnIndexOffset = sharedIndexOffset + numCells
 
   def setConnectionTargetIdx(nodeIdx: Int, segmentIdx: Int, connectionIdx: Int, targetIdx: Int): Unit = {
     val idx = getConnectionOffset(nodeIdx, segmentIdx, connectionIdx)
@@ -406,21 +612,4 @@ abstract class MutableLayerState(
 
     if(cur != 0) activation(nodeIdx) = (cur - 1).toByte
   }*/
-}
-
-//START HERE!!
-trait SingleL3Layer {
-
-
-  //flip-flop states: old lastState copies from pendingState, lastState swaps to pendingState, then process.
-  def pendingState: MutableLayerState
-  def lastState: LayerState
-
-  def copyInputs(): Unit //copy inputs into input registers
-
-  def update(): Unit = {
-    copyInputs()
-
-
-  }
 }
